@@ -453,6 +453,7 @@ export const BuddyApp = () => {
   };
 
   // Step 7.7: Regression self-test functions
+  // Step 7.7: Regression self-test functions with detailed logging
   const testSTT = async () => {
     try {
       toast({ title: "🧪 Testing Speech-to-Text...", description: "Recording 3 seconds of audio" });
@@ -471,14 +472,24 @@ export const BuddyApp = () => {
         const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
         const base64Audio = btoa(binaryString);
         
+        console.log('🧪 STT Test: Calling transcribe-audio...');
         const { data, error } = await supabase.functions.invoke('transcribe-audio', {
           body: { audio: base64Audio }
         });
         
-        if (error) throw error;
+        // Log detailed results
+        const status = error ? 'ERROR' : 'SUCCESS';
+        const payload = data?.text || error?.message || 'No response';
+        const preview = payload.substring(0, 40) + (payload.length > 40 ? '...' : '');
+        console.log(`✅ STT Test Result: ${status} | Payload: "${preview}"`);
+        
+        if (error) {
+          throw new Error(`STT failed: ${error.message}`);
+        }
+        
         toast({ 
           title: "✅ STT Test Complete", 
-          description: `Result: "${data.text || 'No text detected'}"` 
+          description: `Status: ${status} | Result: "${preview}"` 
         });
         
         stream.getTracks().forEach(track => track.stop());
@@ -487,7 +498,7 @@ export const BuddyApp = () => {
       mediaRecorder.start();
       setTimeout(() => mediaRecorder.stop(), 3000);
     } catch (error) {
-      console.error('STT test failed:', error);
+      console.error('❌ STT test failed:', error);
       toast({ title: "❌ STT Test Failed", description: error.message, variant: "destructive" });
     }
   };
@@ -496,6 +507,7 @@ export const BuddyApp = () => {
     try {
       toast({ title: "🧪 Testing LLM...", description: "Sending test message to Gemini" });
       
+      console.log('🧪 LLM Test: Calling ask-gemini...');
       const { data, error } = await supabase.functions.invoke('ask-gemini', {
         body: { 
           message: "Say hello in exactly 5 words.",
@@ -503,13 +515,22 @@ export const BuddyApp = () => {
         }
       });
       
-      if (error) throw error;
+      // Log detailed results
+      const status = error ? 'ERROR' : 'SUCCESS';
+      const payload = data?.response || error?.message || 'No response';
+      const preview = payload.substring(0, 40) + (payload.length > 40 ? '...' : '');
+      console.log(`✅ LLM Test Result: ${status} | Payload: "${preview}"`);
+      
+      if (error) {
+        throw new Error(`LLM failed: ${error.message}`);
+      }
+      
       toast({ 
         title: "✅ LLM Test Complete", 
-        description: `Response: "${data.response?.substring(0, 50)}..."` 
+        description: `Status: ${status} | Response: "${preview}"` 
       });
     } catch (error) {
-      console.error('LLM test failed:', error);
+      console.error('❌ LLM test failed:', error);
       toast({ title: "❌ LLM Test Failed", description: error.message, variant: "destructive" });
     }
   };
@@ -517,11 +538,18 @@ export const BuddyApp = () => {
   const testTTS = async () => {
     try {
       toast({ title: "🧪 Testing Text-to-Speech...", description: "Playing test audio" });
-      await playVoice("This is a test of the text to speech system.");
-      toast({ title: "✅ TTS Test Complete", description: "Audio should have played" });
+      console.log('🧪 TTS Test: Calling playVoice...');
+      
+      await playVoice("Testing text to speech system.");
+      
+      // Log success
+      console.log('✅ TTS Test Result: SUCCESS | Payload: "Audio playback completed"');
+      toast({ title: "✅ TTS Test Complete", description: "Status: SUCCESS | Audio played" });
     } catch (error) {
-      console.error('TTS test failed:', error);
-      toast({ title: "❌ TTS Test Failed", description: error.message, variant: "destructive" });
+      console.error('❌ TTS test failed:', error);
+      const preview = error.message.substring(0, 40) + (error.message.length > 40 ? '...' : '');
+      console.log(`❌ TTS Test Result: ERROR | Payload: "${preview}"`);
+      toast({ title: "❌ TTS Test Failed", description: `Status: ERROR | ${preview}`, variant: "destructive" });
     }
   };
 
@@ -590,12 +618,14 @@ export const BuddyApp = () => {
         console.log('✅ Audio playback completed');
         setIsSpeaking(false);
         
-        // Step 7.6: Add confetti animation after speech
-        confetti({
-          particleCount: 50,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
+        // Step 7.6: Age-specific confetti burst 🎉 for ageYears ≤ 5
+        if (childProfile && childProfile.ageYears <= 5) {
+          confetti({
+            particleCount: 50,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        }
         
         toast({
           title: "✅ Done speaking!",
@@ -769,16 +799,20 @@ export const BuddyApp = () => {
             </div>
           </Card>
           
-          {/* Conversation Messages */}
+           {/* Conversation Messages with animations */}
           {messages.length > 0 ? (
-            messages.map((message) => (
+            messages.map((message, index) => (
               <Card 
                 key={message.id} 
-                className={`p-4 ${
-                  message.type === 'user' 
+                className={`
+                  p-4 animate-fade-in
+                  ${message.type === 'user' 
                     ? 'bg-white border-gray-200 ml-8' 
                     : 'bg-gradient-to-r from-blue-100 to-purple-100 border-blue-200 mr-8'
-                }`}
+                  }
+                  ${message.type === 'buddy' ? 'animate-scale-in' : ''}
+                `}
+                style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="flex items-start space-x-3">
                   {message.type === 'buddy' && (
