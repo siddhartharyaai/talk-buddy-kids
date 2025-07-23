@@ -24,7 +24,7 @@ serve(async req => {
     
     // Use Deepgram TTS API with maximum speed optimizations
     const res = await fetch(
-      `https://api.deepgram.com/v1/speak?model=aura-2-amalthea-en&encoding=mp3&sample_rate=22050&bit_rate=32000`,
+      `https://api.deepgram.com/v1/speak?model=aura-2-amalthea-en&encoding=mp3`,
       {
         method: "POST",
         headers: { 
