@@ -24,23 +24,36 @@ async function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
   return await blob.arrayBuffer();
 }
 
-// Add transcribeAudio helper using Edge Function
+// Add transcribeAudio helper using direct Deepgram API
 async function transcribeAudio(blob: Blob): Promise<string> {
-  // Convert to base64
-  const buffer = await blobToArrayBuffer(blob);
-  const base64Audio = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  const resp = await fetch(
+    // auto‑detect language, punctuation on
+    "https://api.deepgram.com/v1/listen?model=nova-2-general&punctuate=true&smart_format=true",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${import.meta.env.VITE_DEEPGRAM_API_KEY}`,
+        "Content-Type": "audio/webm;codecs=opus"
+      },
+      body: blob
+    }
+  );
 
-  // Call our Supabase Edge Function
-  const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-    body: { audio: base64Audio }
-  });
-
-  if (error) {
-    console.error("Transcription error:", error);
-    throw new Error(`STT failed: ${error.message}`);
+  if (!resp.ok) {
+    const txt = await resp.text();
+    console.error("DG error", resp.status, txt);
+    throw new Error(`Deepgram ${resp.status}`);
   }
 
-  return data?.text || "";
+  const dg = await resp.json();
+  console.log("DG raw:", dg);
+
+  // safest path for new schema
+  return (
+    dg?.results?.channels?.[0]?.alternatives?.[0]?.paragraphs?.transcript ||
+    dg?.results?.channels?.[0]?.alternatives?.[0]?.transcript ||
+    ""
+  ).trim();
 }
 
 export function BuddyApp() {
