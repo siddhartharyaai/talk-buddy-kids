@@ -32,3 +32,6 @@ port = 54327
 
 [functions.transcribe-audio]
 verify_jwt = false
+
+[functions.ask-gemini]
+verify_jwt = false

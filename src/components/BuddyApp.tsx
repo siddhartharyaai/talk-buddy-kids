@@ -133,6 +133,9 @@ export const BuddyApp = () => {
           title: "Speech recognized! 🎯",
           description: `"${transcribedText.slice(0, 50)}${transcribedText.length > 50 ? '...' : ''}"`
         });
+        
+        // Get AI response from Buddy
+        await getBuddyResponse(transcribedText);
       }
       
     } catch (error) {
@@ -148,6 +151,79 @@ export const BuddyApp = () => {
       toast({
         title: "Transcription failed",
         description: "Could not convert speech to text. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Get AI response from Buddy
+  const getBuddyResponse = async (userMessage: string) => {
+    if (!childProfile) {
+      console.error('❌ No child profile available for AI response');
+      return;
+    }
+
+    // Add Buddy's thinking message
+    const buddyMessageId = Date.now().toString();
+    const thinkingMessage: ChatMessage = {
+      id: buddyMessageId,
+      type: 'buddy',
+      content: 'Let me think about that...',
+      timestamp: new Date(),
+      isProcessing: true
+    };
+    
+    setMessages(prev => [...prev, thinkingMessage]);
+
+    try {
+      console.log('🤖 Getting AI response for:', userMessage);
+      
+      // Call ask-gemini edge function
+      const { data, error } = await supabase.functions.invoke('ask-gemini', {
+        body: { 
+          message: userMessage,
+          childProfile: childProfile
+        }
+      });
+      
+      if (error) {
+        console.error('❌ AI response error:', error);
+        throw error;
+      }
+      
+      console.log('🤖 AI response:', data);
+      
+      const aiResponse = data.response || "I'm sorry, I'm having trouble thinking right now. Can you ask me something else? 😊";
+      
+      // Update the message with AI response
+      setMessages(prev => prev.map(msg => 
+        msg.id === buddyMessageId
+          ? { ...msg, content: aiResponse, isProcessing: false }
+          : msg
+      ));
+      
+      toast({
+        title: "Buddy responded! 🎉",
+        description: "Your AI friend is ready to chat!"
+      });
+      
+    } catch (error) {
+      console.error('❌ AI response failed:', error);
+      
+      // Update with fallback message
+      setMessages(prev => prev.map(msg => 
+        msg.id === buddyMessageId
+          ? { 
+              ...msg, 
+              content: "Hi! I'm having a little trouble right now, but I'm still here to chat! Can you ask me something else? 😊",
+              isProcessing: false 
+            }
+          : msg
+      ));
+      
+      toast({
+        title: "AI response failed",
+        description: "Buddy is having trouble right now. Please try again!",
         variant: "destructive"
       });
     }
