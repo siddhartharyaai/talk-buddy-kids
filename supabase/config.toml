@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.ask-gemini]
 verify_jwt = false
+
+[functions.speak-gtts]
+verify_jwt = false

@@ -37,25 +37,78 @@ export const BuddyApp = () => {
   // Load saved data on mount
   useEffect(() => {
     console.log('🔍 useEffect running...');
+    loadUserData();
+  }, []);
+
+  const loadUserData = async () => {
+    // Load consent from localStorage (since it's not user-specific)
     const savedConsent = localStorage.getItem('buddy-consent');
-    const savedProfile = localStorage.getItem('buddy-child-profile');
     
     if (savedConsent === 'granted') {
       setHasConsent(true);
+      
+      // Try to load profile from database first, then fallback to localStorage
+      try {
+        // Get or create device ID
+        let deviceId = localStorage.getItem('buddy-device-id');
+        if (!deviceId) {
+          deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+          localStorage.setItem('buddy-device-id', deviceId);
+        }
+
+        const { data: profile, error } = await supabase
+          .from('child_profiles')
+          .select('*')
+          .eq('user_id', deviceId)
+          .maybeSingle();
+
+        if (error) {
+          console.error('❌ Error loading profile from database:', error);
+          // Fallback to localStorage
+          loadProfileFromLocalStorage();
+        } else if (profile) {
+          // Convert database format to frontend format
+          const frontendProfile: ChildProfile = {
+            name: profile.name,
+            ageGroup: profile.age_group as ChildProfile['ageGroup'],
+            ageYears: profile.age_years,
+            gender: profile.gender as ChildProfile['gender'],
+            interests: profile.interests || [],
+            learningGoals: profile.learning_goals || [],
+            energyLevel: profile.energy_level as ChildProfile['energyLevel'],
+            language: (profile.language || ['english']).filter((lang: string): lang is 'english' | 'hindi' => 
+              lang === 'english' || lang === 'hindi'
+            ) as ('english' | 'hindi')[]
+          };
+          setChildProfile(frontendProfile);
+          console.log('✅ Loaded profile from database:', frontendProfile);
+        } else {
+          // No profile in database, try localStorage
+          loadProfileFromLocalStorage();
+        }
+      } catch (error) {
+        console.error('❌ Database connection error:', error);
+        loadProfileFromLocalStorage();
+      }
     } else {
       // Show consent banner on first visit
       setShowConsent(true);
     }
-    
+    console.log('🔍 useEffect completed');
+  };
+
+  const loadProfileFromLocalStorage = () => {
+    const savedProfile = localStorage.getItem('buddy-child-profile');
     if (savedProfile) {
       try {
         setChildProfile(JSON.parse(savedProfile));
+        console.log('✅ Loaded profile from localStorage');
       } catch (e) {
-        console.error('Failed to parse saved profile:', e);
+        console.error('❌ Error parsing saved profile:', e);
+        localStorage.removeItem('buddy-child-profile');
       }
     }
-    console.log('🔍 useEffect completed');
-  }, []);
+  };
 
   const handleConsentAccept = () => {
     localStorage.setItem('buddy-consent', 'granted');
@@ -79,14 +132,58 @@ export const BuddyApp = () => {
     });
   };
 
-  const handleProfileSave = (profile: ChildProfile) => {
+  const handleProfileSave = async (profile: ChildProfile) => {
+    // Save to localStorage immediately for fallback
     localStorage.setItem('buddy-child-profile', JSON.stringify(profile));
     setChildProfile(profile);
     
-    toast({
-      title: `Settings saved! 👋`,
-      description: `Buddy is now ready for ${profile.name}!`,
-    });
+    // For now, also save to database using anonymous user approach
+    try {
+      // Since we don't have user auth, create a device-specific ID
+      let deviceId = localStorage.getItem('buddy-device-id');
+      if (!deviceId) {
+        deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+        localStorage.setItem('buddy-device-id', deviceId);
+      }
+
+      const dbProfile = {
+        user_id: deviceId, // Use device ID as user ID
+        name: profile.name,
+        age_group: profile.ageGroup,
+        age_years: profile.ageYears,
+        gender: profile.gender,
+        interests: profile.interests,
+        learning_goals: profile.learningGoals,
+        energy_level: profile.energyLevel,
+        language: profile.language
+      };
+
+      const { error } = await supabase
+        .from('child_profiles')
+        .upsert(dbProfile, { 
+          onConflict: 'user_id'
+        });
+
+      if (error) {
+        console.error('❌ Error saving profile to database:', error);
+        toast({
+          title: "Profile saved locally! ⚠️",
+          description: `Settings saved for ${profile.name}, but couldn't sync to cloud.`,
+        });
+      } else {
+        console.log('✅ Profile saved to database');
+        toast({
+          title: `Settings saved! 👋`,
+          description: `Buddy is now ready for ${profile.name}!`,
+        });
+      }
+    } catch (error) {
+      console.error('❌ Database save failed:', error);
+      toast({
+        title: "Profile saved locally! ⚠️",
+        description: `Settings saved for ${profile.name}, but couldn't sync to cloud.`,
+      });
+    }
   };
 
   // Convert audio blob to base64 and transcribe
