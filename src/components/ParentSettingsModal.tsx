@@ -4,11 +4,18 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export interface ChildProfile {
   name: string;
   ageGroup: '3-5' | '6-8' | '9-12';
-  language: 'english' | 'hindi';
+  ageYears: number;
+  gender: 'male' | 'female' | 'other';
+  interests: string[];
+  learningGoals: string[];
+  energyLevel: 'low' | 'medium' | 'high';
+  language: ('english' | 'hindi')[];
 }
 
 interface ParentSettingsModalProps {
@@ -28,12 +35,17 @@ export const ParentSettingsModal = ({
     initialProfile || {
       name: '',
       ageGroup: '6-8',
-      language: 'english'
+      ageYears: 7,
+      gender: 'other',
+      interests: [],
+      learningGoals: [],
+      energyLevel: 'medium',
+      language: ['english']
     }
   );
 
   const handleSave = () => {
-    if (profile.name.trim()) {
+    if (profile.name.trim() && profile.language.length > 0) {
       onSave(profile);
       onClose();
     }
@@ -105,29 +117,163 @@ export const ParentSettingsModal = ({
             </RadioGroup>
           </div>
 
-          {/* Language Preference */}
+          {/* Age in Years */}
+          <div className="space-y-2">
+            <Label htmlFor="ageYears" className="text-sm font-medium text-gray-700">
+              Exact Age (years)
+            </Label>
+            <Input
+              id="ageYears"
+              type="number"
+              min="3"
+              max="12"
+              value={profile.ageYears}
+              onChange={(e) => setProfile({ ...profile, ageYears: parseInt(e.target.value) || 3 })}
+              className="w-full"
+            />
+          </div>
+
+          {/* Gender */}
           <div className="space-y-3">
             <Label className="text-sm font-medium text-gray-700">
-              Primary Language
+              Gender
+            </Label>
+            <Select value={profile.gender} onValueChange={(value) => setProfile({ ...profile, gender: value as ChildProfile['gender'] })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select gender" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">Boy</SelectItem>
+                <SelectItem value="female">Girl</SelectItem>
+                <SelectItem value="other">Other/Prefer not to say</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Interests */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">
+              Interests (select all that apply)
+            </Label>
+            <div className="grid grid-cols-2 gap-2">
+              {['Animals', 'Science', 'Art', 'Music', 'Sports', 'Stories', 'Games', 'Nature'].map((interest) => (
+                <div key={interest} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`interest-${interest}`}
+                    checked={profile.interests.includes(interest)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setProfile({ ...profile, interests: [...profile.interests, interest] });
+                      } else {
+                        setProfile({ ...profile, interests: profile.interests.filter(i => i !== interest) });
+                      }
+                    }}
+                  />
+                  <Label htmlFor={`interest-${interest}`} className="text-sm cursor-pointer">
+                    {interest}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Learning Goals */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">
+              Learning Goals (select all that apply)
+            </Label>
+            <div className="grid grid-cols-1 gap-2">
+              {['Reading Skills', 'Math Concepts', 'Creative Thinking', 'Problem Solving', 'Language Learning', 'Social Skills'].map((goal) => (
+                <div key={goal} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`goal-${goal}`}
+                    checked={profile.learningGoals.includes(goal)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setProfile({ ...profile, learningGoals: [...profile.learningGoals, goal] });
+                      } else {
+                        setProfile({ ...profile, learningGoals: profile.learningGoals.filter(g => g !== goal) });
+                      }
+                    }}
+                  />
+                  <Label htmlFor={`goal-${goal}`} className="text-sm cursor-pointer">
+                    {goal}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Energy Level */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium text-gray-700">
+              Energy Level
             </Label>
             <RadioGroup
-              value={profile.language}
-              onValueChange={(value) => setProfile({ ...profile, language: value as ChildProfile['language'] })}
+              value={profile.energyLevel}
+              onValueChange={(value) => setProfile({ ...profile, energyLevel: value as ChildProfile['energyLevel'] })}
               className="space-y-2"
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="english" id="lang-english" />
+                <RadioGroupItem value="low" id="energy-low" />
+                <Label htmlFor="energy-low" className="text-sm cursor-pointer">
+                  😌 Calm & Quiet
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="medium" id="energy-medium" />
+                <Label htmlFor="energy-medium" className="text-sm cursor-pointer">
+                  😊 Balanced
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="high" id="energy-high" />
+                <Label htmlFor="energy-high" className="text-sm cursor-pointer">
+                  🚀 High Energy & Active
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {/* Language Preference - Now Multi-Select */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium text-gray-700">
+              Languages (select all that apply)
+            </Label>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="lang-english"
+                  checked={profile.language.includes('english')}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setProfile({ ...profile, language: [...profile.language, 'english'] });
+                    } else {
+                      setProfile({ ...profile, language: profile.language.filter(l => l !== 'english') });
+                    }
+                  }}
+                />
                 <Label htmlFor="lang-english" className="text-sm cursor-pointer">
                   🇺🇸 English
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="hindi" id="lang-hindi" />
+                <Checkbox
+                  id="lang-hindi"
+                  checked={profile.language.includes('hindi')}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setProfile({ ...profile, language: [...profile.language, 'hindi'] });
+                    } else {
+                      setProfile({ ...profile, language: profile.language.filter(l => l !== 'hindi') });
+                    }
+                  }}
+                />
                 <Label htmlFor="lang-hindi" className="text-sm cursor-pointer">
                   🇮🇳 Hindi (हिंदी)
                 </Label>
               </div>
-            </RadioGroup>
+            </div>
           </div>
 
           {/* Action Buttons */}
@@ -141,7 +287,7 @@ export const ParentSettingsModal = ({
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!profile.name.trim()}
+              disabled={!profile.name.trim() || profile.language.length === 0}
               className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50"
             >
               Save Settings
