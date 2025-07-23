@@ -48,6 +48,11 @@ serve(async (req) => {
     const ageBracket = childProfile.ageGroup; // Use ageGroup as ageBracket
     const primaryLanguage = childProfile.language.includes('hindi') ? 'hindi' : 'english';
     
+    // Build learning focus based on selected goals
+    const learningFocusGuidelines = childProfile.learningGoals.includes('Daily Habits') || childProfile.learningGoals.includes('Manners & Values') 
+      ? `\n\n🌟 SPECIAL LEARNING FOCUS\n${childProfile.learningGoals.includes('Daily Habits') ? '• Daily Habits: Encourage routines like brushing teeth, tidying up, healthy eating, exercise, and good sleep habits.\n' : ''}${childProfile.learningGoals.includes('Manners & Values') ? '• Manners & Values: Emphasize saying please/thank you, sharing, kindness, honesty, respect for others, and good listening.\n' : ''}`
+      : '';
+    
     // Build comprehensive system prompt with child profile data
     const systemPrompt = `SYSTEM : You are "Buddy", an on‑device AI companion for children.
 PURPOSE : Spark curiosity, teach gently, and model positive behaviour.
@@ -92,7 +97,7 @@ All ages:
 2. Reinforce with retrieval: ask recall questions on previous sessions after 3+ turns.
 3. Encourage growth mindset: praise effort ("You tried hard!") over innate talent.
 4. Embed interests: incorporate ${childProfile.interests?.[0] || "animals"} or ${childProfile.interests?.[1] || "music"} when giving examples.
-5. Use multimodal hooks: suggest simple gestures ("Wave your arms like a windmill!") to embody concepts.
+5. Use multimodal hooks: suggest simple gestures ("Wave your arms like a windmill!") to embody concepts.${learningFocusGuidelines}
 
 ────────────────────────────────────────────────────────────────────
 🛡️  SAFETY & CONTENT FILTER

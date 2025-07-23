@@ -20,6 +20,7 @@ export const BuddyApp = () => {
 
   const [isRecording, setIsRecording] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [hasGreeted, setHasGreeted] = useState(false);
   const [showConsent, setShowConsent] = useState(false);
   const [hasConsent, setHasConsent] = useState(false);
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
@@ -450,6 +451,48 @@ export const BuddyApp = () => {
       });
     }
   };
+
+  // Enthusiastic auto-greeting when child logs in
+  const playWelcomeGreeting = async () => {
+    if (!childProfile || hasGreeted) return;
+    
+    const greetings = [
+      `Hi ${childProfile.name}! 🌟 I'm Buddy, your super fun AI friend! I can help you learn about animals, tell amazing stories, teach you cool science facts, play word games, and answer any questions you have! What would you like to explore first?`,
+      `Hello there, ${childProfile.name}! 🚀 Welcome to our amazing adventure together! I'm Buddy and I love chatting with curious kids like you! I can tell you about space, animals, help with math, create fun stories, and so much more! What sounds exciting to you today?`,
+      `Hey ${childProfile.name}! 🎉 I'm Buddy and I'm SO excited to be your learning buddy! We can discover incredible things about nature, practice reading together, solve fun puzzles, learn about different countries, or just have a great chat! What adventure should we start with?`
+    ];
+    
+    const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
+    
+    try {
+      setHasGreeted(true);
+      await playVoice(randomGreeting);
+      
+      // Add the greeting to chat
+      const greetingMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'buddy',
+        content: randomGreeting,
+        timestamp: new Date()
+      };
+      setMessages(prev => [greetingMessage]);
+      
+    } catch (error) {
+      console.error('❌ Welcome greeting failed:', error);
+    }
+  };
+
+  // Auto-play greeting when ready
+  useEffect(() => {
+    if (hasConsent && childProfile && !hasGreeted) {
+      // Small delay to ensure everything is ready
+      const timer = setTimeout(() => {
+        playWelcomeGreeting();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [hasConsent, childProfile, hasGreeted]);
 
   const getWelcomeMessage = () => {
     if (!hasConsent) {

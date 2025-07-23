@@ -222,7 +222,7 @@ export const ParentSettingsModal = ({
                 </Tooltip>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {['Reading Skills', 'Math Concepts', 'Creative Thinking', 'Problem Solving', 'Language Learning', 'Social Skills'].map((goal) => (
+                {['Reading Skills', 'Math Concepts', 'Creative Thinking', 'Problem Solving', 'Language Learning', 'Social Skills', 'Daily Habits', 'Manners & Values'].map((goal) => (
                   <div key={goal} className="flex items-center space-x-2">
                     <Checkbox
                       id={`goal-${goal}`}
