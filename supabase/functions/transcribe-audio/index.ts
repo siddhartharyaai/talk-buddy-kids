@@ -57,8 +57,9 @@ serve(async (req) => {
     const formData = new FormData()
     const blob = new Blob([binaryAudio], { type: 'audio/webm' })
     formData.append('file', blob, 'audio.webm')
-    formData.append('model', 'nova')
-    formData.append('language', 'hi')
+    formData.append('model', 'nova-2-general')
+    formData.append('punctuate', 'true')
+    formData.append('smart_format', 'true')
 
     console.log('Calling Deepgram API...')
 
@@ -80,7 +81,11 @@ serve(async (req) => {
     const result = await response.json()
     console.log('Deepgram response:', result)
 
-    const transcript = result?.results?.channels?.[0]?.alternatives?.[0]?.transcript || ""
+    const transcript = (
+      result?.results?.channels?.[0]?.alternatives?.[0]?.paragraphs?.transcript ||
+      result?.results?.channels?.[0]?.alternatives?.[0]?.transcript ||
+      ""
+    ).trim()
 
     return new Response(
       JSON.stringify({ text: transcript.trim() }),
