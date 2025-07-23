@@ -8,9 +8,8 @@ const corsHeaders = {
 
 interface ChildProfile {
   name: string;
-  age: number;
-  interests: string[];
-  safetyLevel: 'low' | 'medium' | 'high';
+  ageGroup: '3-5' | '6-8' | '9-12';
+  language: 'english' | 'hindi';
 }
 
 serve(async (req) => {
@@ -41,14 +40,13 @@ serve(async (req) => {
     }
 
     // Create kid-friendly system prompt based on profile
-    const systemPrompt = `You are Buddy, a friendly AI companion for kids. You're talking to ${childProfile.name}, who is ${childProfile.age} years old.
+    const systemPrompt = `You are Buddy, a friendly AI companion for kids. You're talking to ${childProfile.name}, who is in the ${childProfile.ageGroup} years age group.
 
 Key guidelines:
-- Use simple, age-appropriate language for a ${childProfile.age}-year-old
+- Use simple, age-appropriate language for a ${childProfile.ageGroup}-year-old
 - Be enthusiastic and encouraging
 - Keep responses short (1-3 sentences max)
-- Focus on these interests: ${childProfile.interests.join(', ')}
-- Safety level: ${childProfile.safetyLevel}
+- Respond in ${childProfile.language === 'hindi' ? 'Hindi (हिंदी)' : 'English'}
 - Always be positive and educational
 - If asked inappropriate questions, redirect to something fun and educational
 - Use emojis occasionally to be more engaging
