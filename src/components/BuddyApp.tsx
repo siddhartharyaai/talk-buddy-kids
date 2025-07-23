@@ -49,25 +49,15 @@ export const BuddyApp = () => {
     if (savedConsent === 'granted') {
       setHasConsent(true);
       
-      // Try to load profile from database first, then fallback to localStorage
+      // Load profile from database for authenticated user
       try {
-        // Get or create device ID
-        let deviceId = localStorage.getItem('buddy-device-id');
-        if (!deviceId) {
-          deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substring(2);
-          localStorage.setItem('buddy-device-id', deviceId);
-        }
-
         const { data: profile, error } = await supabase
           .from('child_profiles')
           .select('*')
-          .eq('user_id', deviceId)
           .maybeSingle();
 
         if (error) {
           console.error('❌ Error loading profile from database:', error);
-          // Fallback to localStorage
-          loadProfileFromLocalStorage();
         } else if (profile) {
           // Convert database format to frontend format
           const frontendProfile: ChildProfile = {
@@ -85,31 +75,16 @@ export const BuddyApp = () => {
           setChildProfile(frontendProfile);
           console.log('✅ Loaded profile from database:', frontendProfile);
         } else {
-          // No profile in database, try localStorage
-          loadProfileFromLocalStorage();
+          console.log('📝 No profile found in database');
         }
       } catch (error) {
         console.error('❌ Database connection error:', error);
-        loadProfileFromLocalStorage();
       }
     } else {
       // Show consent banner on first visit
       setShowConsent(true);
     }
     console.log('🔍 useEffect completed');
-  };
-
-  const loadProfileFromLocalStorage = () => {
-    const savedProfile = localStorage.getItem('buddy-child-profile');
-    if (savedProfile) {
-      try {
-        setChildProfile(JSON.parse(savedProfile));
-        console.log('✅ Loaded profile from localStorage');
-      } catch (e) {
-        console.error('❌ Error parsing saved profile:', e);
-        localStorage.removeItem('buddy-child-profile');
-      }
-    }
   };
 
   const handleConsentAccept = () => {
@@ -135,21 +110,18 @@ export const BuddyApp = () => {
   };
 
   const handleProfileSave = async (profile: ChildProfile) => {
-    // Save to localStorage immediately for fallback
-    localStorage.setItem('buddy-child-profile', JSON.stringify(profile));
     setChildProfile(profile);
     
-    // For now, also save to database using anonymous user approach
+    // Save to database for authenticated user
     try {
-      // Since we don't have user auth, create a device-specific ID
-      let deviceId = localStorage.getItem('buddy-device-id');
-      if (!deviceId) {
-        deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substring(2);
-        localStorage.setItem('buddy-device-id', deviceId);
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
       }
 
       const dbProfile = {
-        user_id: deviceId, // Use device ID as user ID
+        user_id: user.id,
         name: profile.name,
         age_group: profile.ageGroup,
         age_years: profile.ageYears,
@@ -169,8 +141,9 @@ export const BuddyApp = () => {
       if (error) {
         console.error('❌ Error saving profile to database:', error);
         toast({
-          title: "Profile saved locally! ⚠️",
-          description: `Settings saved for ${profile.name}, but couldn't sync to cloud.`,
+          title: "Profile save failed",
+          description: "There was an error saving the profile. Please try again.",
+          variant: "destructive"
         });
       } else {
         console.log('✅ Profile saved to database');
@@ -182,8 +155,34 @@ export const BuddyApp = () => {
     } catch (error) {
       console.error('❌ Database save failed:', error);
       toast({
-        title: "Profile saved locally! ⚠️",
-        description: `Settings saved for ${profile.name}, but couldn't sync to cloud.`,
+        title: "Profile save failed",
+        description: "There was an error saving the profile. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Clear local state
+      setChildProfile(null);
+      setMessages([]);
+      setHasGreeted(false);
+      localStorage.removeItem('buddy-consent');
+      
+      toast({
+        title: "Logged out successfully",
+        description: "Thanks for using Buddy! Come back anytime.",
+      });
+    } catch (error) {
+      console.error('❌ Logout failed:', error);
+      toast({
+        title: "Logout failed",
+        description: "There was an error logging out.",
+        variant: "destructive"
       });
     }
   };
@@ -623,14 +622,25 @@ export const BuddyApp = () => {
           </div>
         </div>
         
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowSettings(true)}
-          className="p-2 hover:bg-gray-100 rounded-full"
-        >
-          <Settings className="w-6 h-6 text-gray-600" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowSettings(true)}
+            className="p-2 hover:bg-gray-100 rounded-full"
+          >
+            <Settings className="w-6 h-6 text-gray-600" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="p-2 hover:bg-red-100 rounded-full text-red-600"
+            title="Logout"
+          >
+            🚪
+          </Button>
+        </div>
       </header>
 
       {/* Chat Area */}
