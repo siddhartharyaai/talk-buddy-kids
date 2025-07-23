@@ -6,12 +6,13 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export interface ChildProfile {
   name: string;
   ageGroup: '3-5' | '6-8' | '9-12';
   ageYears: number;
-  gender: 'male' | 'female' | 'other';
+  gender: 'boy' | 'girl' | 'other';
   interests: string[];
   learningGoals: string[];
   energyLevel: 'low' | 'medium' | 'high';
@@ -54,8 +55,9 @@ export const ParentSettingsModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-md p-6 bg-white">
+    <TooltipProvider>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <Card className="w-full max-w-md p-6 bg-white">
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-800">
@@ -143,8 +145,8 @@ export const ParentSettingsModal = ({
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="male">Boy</SelectItem>
-                <SelectItem value="female">Girl</SelectItem>
+                <SelectItem value="boy">Boy</SelectItem>
+                <SelectItem value="girl">Girl</SelectItem>
                 <SelectItem value="other">Other/Prefer not to say</SelectItem>
               </SelectContent>
             </Select>
@@ -152,9 +154,19 @@ export const ParentSettingsModal = ({
 
           {/* Interests */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">
-              Interests (select all that apply)
-            </Label>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium text-gray-700">
+                Interests (select all that apply)
+              </Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help text-gray-400 hover:text-gray-600">ℹ️</span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>Select topics your child enjoys. Buddy will use these to make conversations more engaging and give examples from their favorite subjects.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               {['Animals', 'Science', 'Art', 'Music', 'Sports', 'Stories', 'Games', 'Nature'].map((interest) => (
                 <div key={interest} className="flex items-center space-x-2">
@@ -179,9 +191,19 @@ export const ParentSettingsModal = ({
 
           {/* Learning Goals */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">
-              Learning Goals (select all that apply)
-            </Label>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium text-gray-700">
+                Learning Goals (select all that apply)
+              </Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help text-gray-400 hover:text-gray-600">ℹ️</span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>Choose areas you'd like your child to develop. Buddy will tailor activities and questions to support these learning objectives.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <div className="grid grid-cols-1 gap-2">
               {['Reading Skills', 'Math Concepts', 'Creative Thinking', 'Problem Solving', 'Language Learning', 'Social Skills'].map((goal) => (
                 <div key={goal} className="flex items-center space-x-2">
@@ -206,9 +228,19 @@ export const ParentSettingsModal = ({
 
           {/* Energy Level */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium text-gray-700">
-              Energy Level
-            </Label>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium text-gray-700">
+                Energy Level
+              </Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help text-gray-400 hover:text-gray-600">ℹ️</span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>This helps Buddy match your child's natural energy. High energy kids get more active suggestions, while calm kids get quieter activities.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <RadioGroup
               value={profile.energyLevel}
               onValueChange={(value) => setProfile({ ...profile, energyLevel: value as ChildProfile['energyLevel'] })}
@@ -294,7 +326,8 @@ export const ParentSettingsModal = ({
             </Button>
           </div>
         </div>
-      </Card>
-    </div>
+        </Card>
+      </div>
+    </TooltipProvider>
   );
 };
