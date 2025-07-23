@@ -618,8 +618,8 @@ export const BuddyApp = () => {
         console.log('✅ Audio playback completed');
         setIsSpeaking(false);
         
-        // Step 7.6: Age-specific confetti burst 🎉 for ageYears ≤ 5
-        if (childProfile && childProfile.ageYears <= 5) {
+        // Step 7.6: Age-specific confetti burst 🎉 for ageYears ≤ 7
+        if (childProfile && childProfile.ageYears <= 7) {
           confetti({
             particleCount: 50,
             spread: 70,
