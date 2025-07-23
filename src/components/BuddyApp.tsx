@@ -24,40 +24,23 @@ async function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
   return await blob.arrayBuffer();
 }
 
-// Add transcribeAudio helper
+// Add transcribeAudio helper using Edge Function
 async function transcribeAudio(blob: Blob): Promise<string> {
-  // Get Deepgram API key from Supabase secrets
-  const { data: { secrets }, error } = await supabase.functions.invoke('get-secrets', {
-    body: { keys: ['DEEPGRAM_API_KEY'] }
-  });
-  
-  if (error || !secrets?.DEEPGRAM_API_KEY) {
-    throw new Error('Deepgram API key not configured');
-  }
-
-  // Convert to ArrayBuffer
+  // Convert to base64
   const buffer = await blobToArrayBuffer(blob);
+  const base64Audio = btoa(String.fromCharCode(...new Uint8Array(buffer)));
 
-  // Build Deepgram request
-  const resp = await fetch("https://api.deepgram.com/v1/listen?model=nova&language=hi", {
-    method: "POST",
-    headers: {
-      "Authorization": `Token ${secrets.DEEPGRAM_API_KEY}`,
-      "Content-Type": "audio/webm"
-    },
-    body: buffer
+  // Call our Supabase Edge Function
+  const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+    body: { audio: base64Audio }
   });
 
-  if (!resp.ok) {
-    console.error("Deepgram error", resp.status, await resp.text());
-    throw new Error(`STT failed ${resp.status}`);
+  if (error) {
+    console.error("Transcription error:", error);
+    throw new Error(`STT failed: ${error.message}`);
   }
 
-  const dg = await resp.json();
-  const text =
-    dg?.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
-
-  return text.trim();
+  return data?.text || "";
 }
 
 export function BuddyApp() {
@@ -342,6 +325,13 @@ export function BuddyApp() {
                 : "Hold to speak"
             }
           </p>
+          
+          {/* Visual feedback for transcript */}
+          {transcriptText && transcriptText !== "…" && (
+            <p className="text-xs text-muted-foreground/70 text-center max-w-xs">
+              "{transcriptText}"
+            </p>
+          )}
         </div>
       </div>
       
