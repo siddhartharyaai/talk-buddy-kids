@@ -713,6 +713,31 @@ export const BuddyApp = () => {
     }
   };
 
+  // Auto-send greeting when user first logs in to trigger audio permission
+  const sendAutoGreeting = async () => {
+    if (!childProfile || hasGreeted) return;
+    
+    console.log('🤖 Sending auto-greeting to trigger audio permission...');
+    
+    // Auto-send a greeting from the "user" to trigger the conversation
+    const autoMessage = "Hi Buddy!";
+    
+    // Add user message
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: autoMessage,
+      timestamp: new Date(),
+      isProcessing: false
+    };
+    
+    setMessages(prev => [...prev, userMsg]);
+    
+    // Get AI response which will trigger audio
+    await getBuddyResponse(autoMessage);
+    setHasGreeted(true);
+  };
+
   // Enthusiastic auto-greeting when child logs in
   const playWelcomeGreeting = async () => {
     if (!childProfile || hasGreeted) return;
@@ -743,17 +768,17 @@ export const BuddyApp = () => {
     }
   };
 
-  // Auto-play greeting when ready
+  // Auto greeting when profile is loaded
   useEffect(() => {
-    if (hasConsent && childProfile && !hasGreeted) {
-      // Small delay to ensure everything is ready
+    if (childProfile && !hasGreeted) {
+      // Small delay to ensure component is fully mounted
       const timer = setTimeout(() => {
-        playWelcomeGreeting();
-      }, 1000);
+        sendAutoGreeting();
+      }, 1500);
       
       return () => clearTimeout(timer);
     }
-  }, [hasConsent, childProfile, hasGreeted]);
+  }, [childProfile, hasGreeted]);
 
   const getWelcomeMessage = () => {
     if (!hasConsent) {
