@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Mic, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -13,6 +13,11 @@ export const BuddyApp = () => {
   const [hasConsent, setHasConsent] = useState(false);
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const { toast } = useToast();
+  
+  // Microphone recording refs
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // Load saved data on mount
   useEffect(() => {
@@ -67,7 +72,97 @@ export const BuddyApp = () => {
     });
   };
 
-  const handleMicPress = () => {
+  // Initialize microphone stream
+  const initializeMicrophone = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: 16000,        // 16kHz as specified
+          channelCount: 1,          // Mono
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      
+      streamRef.current = stream;
+      console.log('🎤 Microphone stream initialized');
+      return stream;
+    } catch (error) {
+      console.error('❌ Microphone access failed:', error);
+      toast({
+        title: "Microphone Error",
+        description: "Could not access microphone. Please check permissions.",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
+  // Start recording
+  const startRecording = async () => {
+    try {
+      const stream = streamRef.current || await initializeMicrophone();
+      
+      // Configure MediaRecorder for WebM/Opus
+      const options = {
+        mimeType: 'audio/webm;codecs=opus',
+        audioBitsPerSecond: 16000
+      };
+      
+      // Fallback if WebM/Opus not supported
+      const mimeType = MediaRecorder.isTypeSupported(options.mimeType) 
+        ? options.mimeType 
+        : 'audio/webm';
+      
+      const mediaRecorder = new MediaRecorder(stream, { 
+        mimeType,
+        audioBitsPerSecond: 16000 
+      });
+      
+      audioChunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        console.log(`🎵 Audio blob captured: ${audioBlob.size} bytes (${(audioBlob.size / 1024).toFixed(2)} KB)`);
+        console.log(`🎵 Blob type: ${audioBlob.type}`);
+        
+        // Log additional details
+        const durationEstimate = audioChunksRef.current.length * 100; // rough estimate
+        console.log(`🎵 Estimated duration: ~${durationEstimate}ms`);
+        
+        toast({
+          title: "Audio Captured! 🎤",
+          description: `Recorded ${(audioBlob.size / 1024).toFixed(2)} KB of audio`,
+        });
+      };
+      
+      mediaRecorder.start(100); // Collect data every 100ms
+      mediaRecorderRef.current = mediaRecorder;
+      
+      console.log('🎤 Recording started');
+      
+    } catch (error) {
+      console.error('❌ Recording start failed:', error);
+      setIsRecording(false);
+    }
+  };
+
+  // Stop recording
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+      console.log('🎤 Recording stopped');
+    }
+  };
+
+  const handleMicPress = async () => {
     if (!hasConsent) {
       setShowConsent(true);
       return;
@@ -83,7 +178,12 @@ export const BuddyApp = () => {
     }
     
     setIsRecording(true);
-    // TODO: Implement actual recording in Step 3
+    await startRecording();
+  };
+
+  const handleMicRelease = () => {
+    setIsRecording(false);
+    stopRecording();
   };
 
   const getWelcomeMessage = () => {
@@ -162,9 +262,9 @@ export const BuddyApp = () => {
               ${(!hasConsent || !childProfile) ? 'opacity-75' : ''}
             `}
             onMouseDown={handleMicPress}
-            onMouseUp={() => setIsRecording(false)}
+            onMouseUp={handleMicRelease}
             onTouchStart={handleMicPress}
-            onTouchEnd={() => setIsRecording(false)}
+            onTouchEnd={handleMicRelease}
           >
             <Mic className="w-8 h-8 text-white" />
           </Button>
