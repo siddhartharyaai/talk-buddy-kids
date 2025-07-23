@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Terminal, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChildProfile, ChatMessage } from './BuddyApp';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DevConsoleProps {
   childProfile: ChildProfile;
@@ -52,17 +53,17 @@ export function DevConsole({
             variant="ghost"
             size="sm"
             onClick={async () => {
-              try {
-                const resp = await fetch("/functions/v1/transcribe-audio", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ audio: "" })
-                });
-                const result = await resp.json();
-                alert(`STT Self-test Response:\n${JSON.stringify(result, null, 2)}`);
-              } catch (e) {
-                alert(`STT Self-test Error:\n${e}`);
+              const { data, error } = await supabase.functions.invoke("transcribe-audio", {
+                body: { audio: "" }   // empty string on purpose
+              });
+
+              if (error) {
+                alert("STT Self‑test Error:\n" + JSON.stringify(error, null, 2));
+              } else {
+                alert("STT Self‑test Response:\n" + JSON.stringify(data, null, 2));
               }
+              
+              console.log("Self‑test patch live ✅");
             }}
             className="text-purple-400 hover:text-purple-300 hover:bg-gray-700 text-xs"
           >
