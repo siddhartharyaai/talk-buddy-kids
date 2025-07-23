@@ -41,8 +41,10 @@ export const BuddyApp = () => {
   }, []);
 
   const loadUserData = async () => {
+    console.log('🔍 Loading user data...');
     // Load consent from localStorage (since it's not user-specific)
     const savedConsent = localStorage.getItem('buddy-consent');
+    console.log('🔍 Saved consent:', savedConsent);
     
     if (savedConsent === 'granted') {
       setHasConsent(true);
