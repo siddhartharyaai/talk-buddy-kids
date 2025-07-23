@@ -348,6 +348,26 @@ export const BuddyApp = () => {
     stopRecording();
   };
 
+  // CORS self-test for speak-gtts function
+  const testSpeakFunction = async () => {
+    try {
+      console.log('🧪 Testing speak-gtts CORS...');
+      const { data, error } = await supabase.functions.invoke('speak-gtts', {
+        body: { text: 'Test', lang: 'en-IN' }
+      });
+      console.log('✅ speak-gtts CORS test result:', data ? 'SUCCESS' : 'FAILED', { data, error });
+    } catch (error) {
+      console.error('❌ speak-gtts CORS test failed:', error);
+    }
+  };
+
+  // Run CORS test on mount (only once)
+  useEffect(() => {
+    if (hasConsent && childProfile) {
+      testSpeakFunction();
+    }
+  }, [hasConsent, childProfile]);
+
   const getWelcomeMessage = () => {
     if (!hasConsent) {
       return "Welcome! Please allow parent permission to get started.";
