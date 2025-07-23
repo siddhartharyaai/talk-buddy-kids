@@ -12,7 +12,7 @@ serve(async req => {
   }
 
   try {
-    const { text } = await req.json();
+    const { text } = await req.json(); // Only accept text, ignore any language parameter
     if (!text) throw new Error("no text");
     
     const apiKey = Deno.env.get("DEEPGRAM_API_KEY");

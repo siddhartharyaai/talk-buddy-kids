@@ -575,14 +575,13 @@ export const BuddyApp = () => {
 
       console.log('🔊 Starting SURESHOT voice playback for:', text.substring(0, 50));
       
-      // Determine language for TTS
-      const primaryLang = childProfile.language.includes('hindi') ? 'hi-IN' : 'en-IN';
-      console.log('🌐 TTS Language:', primaryLang);
+      // Always use English for TTS regardless of user language
+      console.log('🌐 TTS Language: Always English');
 
-      // Call speak-gtts function
+      // Call speak-gtts function with text only (always English)
       console.log('📞 Calling speak-gtts function...');
       const { data, error } = await supabase.functions.invoke('speak-gtts', {
-        body: { text, lang: primaryLang }
+        body: { text } // Only send text, TTS will always be in English
       });
 
       console.log('📡 TTS Response received');
