@@ -189,6 +189,42 @@ export const BuddyApp = () => {
     }
   };
 
+  
+  // Real-time audio chunk processing for blazing fast STT
+  const processAudioChunk = async (audioBlob: Blob) => {
+    if (!childProfile) return;
+    
+    try {
+      // Convert to base64 immediately for ultra-fast processing
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+      const base64Audio = btoa(binaryString);
+      
+      // Skip tiny chunks that won't have meaningful audio
+      if (base64Audio.length < 1000) return;
+      
+      console.log('⚡ REAL-TIME: Processing audio chunk...', base64Audio.length, 'chars');
+      
+      // Ultra-fast STT call
+      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+        body: { audio: base64Audio }
+      });
+      
+      if (error || !data?.text?.trim()) return;
+      
+      // If we get a meaningful transcription, process immediately
+      const text = data.text.trim();
+      if (text.length > 3) { // Only process meaningful text
+        console.log('⚡ REAL-TIME STT:', text);
+        await getBuddyResponse(text);
+      }
+      
+    } catch (error) {
+      console.error('❌ Real-time chunk processing failed:', error);
+    }
+  };
+
   // Convert audio blob to base64 and transcribe
   const transcribeAudio = async (audioBlob: Blob, messageId: string) => {
     try {
@@ -365,10 +401,10 @@ export const BuddyApp = () => {
     try {
       const stream = streamRef.current || await initializeMicrophone();
       
-      // Configure MediaRecorder for WebM/Opus
+      // Ultra-fast MediaRecorder configuration for real-time STT
       const options = {
         mimeType: 'audio/webm;codecs=opus',
-        audioBitsPerSecond: 16000
+        audioBitsPerSecond: 12000  // Lower bitrate for blazing fast upload
       };
       
       // Fallback if WebM/Opus not supported
@@ -383,9 +419,15 @@ export const BuddyApp = () => {
       
       audioChunksRef.current = [];
       
-      mediaRecorder.ondataavailable = (event) => {
+      mediaRecorder.ondataavailable = async (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
+          
+          // BLAZING FAST: Process chunks immediately for real-time STT
+          if (event.data.size > 1000) { // Only process meaningful chunks
+            const audioBlob = new Blob([event.data], { type: 'audio/webm' });
+            await processAudioChunk(audioBlob);
+          }
         }
       };
       

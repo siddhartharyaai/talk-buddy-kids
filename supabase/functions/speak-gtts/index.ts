@@ -22,9 +22,9 @@ serve(async req => {
     
     console.log('🔊 Generating speech with Deepgram TTS:', { text: text.substring(0, 50) });
     
-    // Use Deepgram TTS API with optimized settings for lower latency
+    // Use Deepgram TTS API with maximum speed optimizations
     const res = await fetch(
-      `https://api.deepgram.com/v1/speak?model=aura-2-amalthea-en&encoding=mp3&sample_rate=24000`,
+      `https://api.deepgram.com/v1/speak?model=aura-2-amalthea-en&encoding=mp3&sample_rate=22050&bit_rate=32000`,
       {
         method: "POST",
         headers: { 

@@ -27,9 +27,9 @@ serve(async (req) => {
     const binary = Uint8Array.from(atob(audio), c => c.charCodeAt(0));
     console.log(`🔄 Converted to binary: ${binary.length} bytes`);
 
-    // Call Deepgram API
+    // Call Deepgram API with Nova-3 for blazing fast performance
     const deepgramResponse = await fetch(
-      "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&language=en-US",
+      "https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&language=en&punctuate=false&diarize=false&utterances=false",
       {
         method: "POST",
         headers: {
