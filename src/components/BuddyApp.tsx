@@ -198,6 +198,8 @@ export const BuddyApp = () => {
     return `Hi ${childProfile.name}! I'm Buddy, your friendly voice companion. Press and hold the microphone to talk to me!`;
   };
 
+  console.log('🔍 BuddyApp rendering...', { hasConsent, childProfile, showConsent, showSettings });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex flex-col">
       {/* Header */}
