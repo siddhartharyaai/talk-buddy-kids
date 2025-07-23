@@ -12,81 +12,55 @@ serve(async req => {
   }
 
   try {
-    const { text, lang } = await req.json();
+    const { text } = await req.json();
     if (!text) throw new Error("no text");
     
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    const apiKey = Deno.env.get("DEEPGRAM_API_KEY");
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY not configured");
+      throw new Error("DEEPGRAM_API_KEY not configured");
     }
     
-    // Use Leda voice for both English and Hindi (Indian languages)
-    const voiceName = "Leda";
+    console.log('🔊 Generating speech with Deepgram TTS:', { text: text.substring(0, 50) });
     
-    console.log('🔊 Generating speech with Gemini TTS:', { text: text.substring(0, 50), lang, voiceName });
-    
-    // Use Gemini TTS API - correct endpoint and format
+    // Use Deepgram TTS API
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent`,
+      `https://api.deepgram.com/v1/speak?model=aura-2-amalthea-en`,
       {
         method: "POST",
         headers: { 
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey
+          "Authorization": `Token ${apiKey}`,
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: text
-            }]
-          }],
-          generationConfig: {
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: voiceName
-                }
-              }
-            }
-          }
+          text: text
         })
       }
     );
     
     if (!res.ok) {
       const errorText = await res.text();
-      console.error('❌ Gemini TTS API error:', res.status, errorText);
-      return new Response(JSON.stringify({ error: `Gemini TTS API error: ${res.status}` }), { 
+      console.error('❌ Deepgram TTS API error:', res.status, errorText);
+      return new Response(JSON.stringify({ error: `Deepgram TTS API error: ${res.status}` }), { 
         status: res.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
     
-    const responseData = await res.json();
-    console.log('📝 Full Gemini TTS response:', responseData);
+    // Get audio as array buffer
+    const audioBuffer = await res.arrayBuffer();
     
-    // Extract audio content from the response
-    const audioContent = responseData.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    
-    if (!audioContent) {
-      console.error('❌ No audio content in response structure:', JSON.stringify(responseData, null, 2));
-      throw new Error('No audio content received from Gemini TTS');
+    if (!audioBuffer || audioBuffer.byteLength === 0) {
+      console.error('❌ No audio content received from Deepgram TTS');
+      throw new Error('No audio content received from Deepgram TTS');
     }
 
+    // Convert to base64
+    const audioContent = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    
     console.log('✅ Raw audio content length:', audioContent.length);
     console.log('✅ Audio content preview (first 100 chars):', audioContent.substring(0, 100));
     
-    // Validate base64 format
-    try {
-      const testDecode = atob(audioContent.substring(0, 100));
-      console.log('✅ Base64 validation passed');
-    } catch (b64Error) {
-      console.error('❌ Invalid base64 data:', b64Error);
-      throw new Error('Invalid base64 audio data received');
-    }
-    
-    console.log('✅ Speech generated successfully with Gemini TTS');
+    console.log('✅ Speech generated successfully with Deepgram TTS');
     
     return new Response(JSON.stringify({ audioContent }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
