@@ -64,11 +64,26 @@ serve(async req => {
     }
     
     const responseData = await res.json();
+    console.log('📝 Full Gemini TTS response:', responseData);
+    
+    // Extract audio content from the response
     const audioContent = responseData.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     
     if (!audioContent) {
-      console.error('❌ No audio content in response:', responseData);
+      console.error('❌ No audio content in response structure:', JSON.stringify(responseData, null, 2));
       throw new Error('No audio content received from Gemini TTS');
+    }
+
+    console.log('✅ Raw audio content length:', audioContent.length);
+    console.log('✅ Audio content preview (first 100 chars):', audioContent.substring(0, 100));
+    
+    // Validate base64 format
+    try {
+      const testDecode = atob(audioContent.substring(0, 100));
+      console.log('✅ Base64 validation passed');
+    } catch (b64Error) {
+      console.error('❌ Invalid base64 data:', b64Error);
+      throw new Error('Invalid base64 audio data received');
     }
     
     console.log('✅ Speech generated successfully with Gemini TTS');

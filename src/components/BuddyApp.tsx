@@ -573,25 +573,19 @@ export const BuddyApp = () => {
         return;
       }
 
-      console.log('🔊 Starting voice playback for:', text.substring(0, 50));
+      console.log('🔊 Starting SURESHOT voice playback for:', text.substring(0, 50));
       
       // Determine language for TTS
       const primaryLang = childProfile.language.includes('hindi') ? 'hi-IN' : 'en-IN';
       console.log('🌐 TTS Language:', primaryLang);
-      
-      // Show starting toast
-      toast({
-        title: "🔊 Speaking...",
-        description: "Buddy is talking to you!",
-      });
 
       // Call speak-gtts function
       console.log('📞 Calling speak-gtts function...');
       const { data, error } = await supabase.functions.invoke('speak-gtts', {
         body: { text, lang: primaryLang }
       });
-      
-      console.log('📡 TTS Response:', { data, error });
+
+      console.log('📡 TTS Response received');
 
       if (error) {
         console.error('❌ TTS Function Error:', error);
@@ -599,151 +593,162 @@ export const BuddyApp = () => {
       }
 
       if (!data?.audioContent) {
-        console.error('❌ No audio content in response:', data);
+        console.error('❌ No audio content in response');
         throw new Error('No audio content received from TTS service');
       }
 
       console.log('✅ Audio content received, length:', data.audioContent.length);
 
-      // Validate base64 audio content
+      // Create Blob from base64 data - MOST RELIABLE METHOD
       try {
-        atob(data.audioContent.substring(0, 100)); // Test first 100 chars
-        console.log('✅ Audio content is valid base64');
-      } catch (b64Error) {
-        console.error('❌ Invalid base64 audio content:', b64Error);
-        throw new Error('Invalid audio format received');
-      }
-
-      // Try multiple audio formats - Gemini TTS format can vary
-      let audioDataUrl = `data:audio/wav;base64,${data.audioContent}`;
-      console.log('🎵 Audio Data URL created (WAV format), length:', audioDataUrl.length);
-      
-      // Create audio element with comprehensive error handling
-      const audio = new Audio();
-      console.log('🎵 Audio element created');
-      
-      // Set playback rate based on age rules
-      const getPlaybackRate = (ageYears: number) => {
-        if (ageYears <= 5) return 0.8;  // Slower for young kids
-        if (ageYears <= 8) return 0.9;  // Slightly slower for elementary
-        return 1.0;  // Normal speed for older kids
-      };
-      
-      audio.playbackRate = getPlaybackRate(childProfile.ageYears);
-      console.log('🎛️ Playback rate set to:', audio.playbackRate);
-
-      // Setup audio event listeners BEFORE setting src
-      audio.addEventListener('loadstart', () => {
-        console.log('🎵 Audio loading started');
-      });
-
-      audio.addEventListener('canplay', () => {
-        console.log('🎵 Audio can start playing');
-      });
-
-      audio.addEventListener('loadeddata', () => {
-        console.log('🎵 Audio data loaded');
-      });
-      
-      // Handle audio events
-      setIsSpeaking(true);
-      audio.addEventListener('ended', () => {
-        console.log('✅ Audio playback completed');
-        setIsSpeaking(false);
-        
-        // Step 7.6: Age-specific confetti burst 🎉 for ageYears ≤ 7
-        if (childProfile && childProfile.ageYears <= 7) {
-          confetti({
-            particleCount: 50,
-            spread: 70,
-            origin: { y: 0.6 }
-          });
+        const binaryString = atob(data.audioContent);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
         }
         
-        toast({
-          title: "✅ Done speaking!",
-          description: "What would you like to talk about next?",
+        // Create blob with explicit audio type
+        const audioBlob = new Blob([bytes], { type: 'audio/wav' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        console.log('🎵 Audio Blob created successfully, size:', audioBlob.size, 'bytes');
+        
+        // Create audio element
+        const audio = new Audio(audioUrl);
+        audio.crossOrigin = 'anonymous';
+        
+        // Set playback rate
+        const getPlaybackRate = (ageYears: number) => {
+          if (ageYears <= 5) return 0.8;
+          if (ageYears <= 8) return 0.9;
+          return 1.0;
+        };
+        
+        audio.playbackRate = getPlaybackRate(childProfile.ageYears);
+        console.log('🎛️ Playback rate set to:', audio.playbackRate);
+
+        // Event handlers
+        audio.addEventListener('canplay', () => {
+          console.log('🎵 Audio ready to play');
         });
-      });
 
-      audio.addEventListener('error', (e) => {
-        console.error('❌ Audio element error:', e);
-        console.error('❌ Audio error details:', {
-          error: audio.error,
-          networkState: audio.networkState,
-          readyState: audio.readyState,
-          src: audio.src?.substring(0, 100) + '...'
-        });
-        
-        // Try fallback format if WAV fails
-        if (audioDataUrl.includes('audio/wav')) {
-          console.log('🔄 WAV failed, trying MP3 format...');
-          audioDataUrl = `data:audio/mp3;base64,${data.audioContent}`;
-          audio.src = audioDataUrl;
-          audio.load();
-          return;
-        }
-        
-        // Try another fallback format
-        if (audioDataUrl.includes('audio/mp3')) {
-          console.log('🔄 MP3 failed, trying generic audio format...');
-          audioDataUrl = `data:audio/*;base64,${data.audioContent}`;
-          audio.src = audioDataUrl;
-          audio.load();
-          return;
-        }
-        
-        // If all formats fail, show error
-        setIsSpeaking(false);
-        toast({
-          title: "Audio Error",
-          description: "Browser cannot play this audio format",
-          variant: "destructive"
-        });
-      });
-
-      // Set the audio source and load
-      audio.src = audioDataUrl;
-      console.log('🎵 Audio source set');
-      audio.load();
-      console.log('🎵 Audio load() called');
-
-      // Set speaking state before attempting to play
-      setIsSpeaking(true);
-
-      // Try to play the audio with comprehensive error handling
-      try {
-        console.log('🎵 Attempting to play audio...');
-        const playPromise = audio.play();
-        
-        if (playPromise !== undefined) {
-          await playPromise;
-          console.log('✅ Audio started playing successfully');
-        }
-      } catch (playError) {
-        console.error('❌ Audio play error:', playError);
-        
-        // Check if it's an autoplay restriction
-        if (playError.name === 'NotAllowedError') {
-          console.log('🚫 Autoplay blocked, requesting user interaction');
+        audio.addEventListener('ended', () => {
+          console.log('✅ Audio playback completed');
           setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+          
+          if (childProfile && childProfile.ageYears <= 7) {
+            confetti({
+              particleCount: 50,
+              spread: 70,
+              origin: { y: 0.6 }
+            });
+          }
+          
           toast({
-            title: "🔊 Audio Permission Needed",
-            description: "Click anywhere to enable audio, then try speaking again!",
-            variant: "destructive"
+            title: "✅ Done speaking!",
+            description: "What would you like to talk about next?",
           });
-          return;
-        } else {
-          throw playError;
-        }
+        });
+
+        audio.addEventListener('error', (e) => {
+          console.error('❌ Audio error:', e, audio.error);
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+          throw new Error(`Audio playback failed: ${audio.error?.message || 'Unknown error'}`);
+        });
+
+        // SURESHOT USER INTERACTION METHOD
+        const attemptPlay = async () => {
+          try {
+            console.log('🎵 Attempting to play audio...');
+            setIsSpeaking(true);
+            await audio.play();
+            console.log('✅ Audio playing successfully!');
+            
+            toast({
+              title: "🎵 Buddy is speaking!",
+              description: "Listen to your friendly AI companion!",
+            });
+            
+          } catch (playError) {
+            console.error('❌ Play failed:', playError);
+            
+            if (playError.name === 'NotAllowedError') {
+              setIsSpeaking(false);
+              
+              toast({
+                title: "🔊 Click to hear Buddy!",
+                description: "Browser needs your permission to play audio. Click anywhere!",
+                variant: "default"
+              });
+              
+              // Enhanced user interaction handler
+              const enableAudio = async (event: Event) => {
+                console.log('👆 User interaction detected:', event.type);
+                try {
+                  setIsSpeaking(true);
+                  await audio.play();
+                  console.log('✅ Audio playing after user interaction!');
+                  
+                  toast({
+                    title: "🎵 Buddy is speaking!",
+                    description: "Audio enabled successfully!",
+                  });
+                  
+                  // Remove all listeners
+                  document.removeEventListener('click', enableAudio);
+                  document.removeEventListener('touchstart', enableAudio);
+                  document.removeEventListener('keydown', enableAudio);
+                  
+                } catch (retryError) {
+                  console.error('❌ Still failed after user interaction:', retryError);
+                  setIsSpeaking(false);
+                  URL.revokeObjectURL(audioUrl);
+                  
+                  toast({
+                    title: "Audio Error",
+                    description: "Cannot play audio even with user interaction",
+                    variant: "destructive"
+                  });
+                }
+              };
+              
+              // Multiple interaction types
+              document.addEventListener('click', enableAudio, { once: true });
+              document.addEventListener('touchstart', enableAudio, { once: true });
+              document.addEventListener('keydown', enableAudio, { once: true });
+              
+              // Cleanup after 30 seconds
+              setTimeout(() => {
+                document.removeEventListener('click', enableAudio);
+                document.removeEventListener('touchstart', enableAudio);
+                document.removeEventListener('keydown', enableAudio);
+                URL.revokeObjectURL(audioUrl);
+                setIsSpeaking(false);
+              }, 30000);
+              
+            } else {
+              throw playError;
+            }
+          }
+        };
+
+        // Load and attempt to play
+        audio.load();
+        await attemptPlay();
+        
+      } catch (blobError) {
+        console.error('❌ Blob creation failed:', blobError);
+        throw new Error('Failed to process audio data');
       }
 
     } catch (error) {
-      console.error('❌ Error in playVoice:', error);
+      console.error('❌ SURESHOT playVoice failed:', error);
       setIsSpeaking(false);
       toast({
         title: "Voice Error",
-        description: `Audio failed: ${error.message}`,
+        description: `Audio system failed: ${error.message}`,
         variant: "destructive"
       });
     }
