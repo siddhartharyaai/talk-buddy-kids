@@ -5,6 +5,15 @@ import { Card } from '@/components/ui/card';
 import { ConsentBanner } from './ConsentBanner';
 import { ParentSettingsModal, ChildProfile } from './ParentSettingsModal';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+
+export interface ChatMessage {
+  id: string;
+  type: 'user' | 'buddy';
+  content: string;
+  timestamp: Date;
+  isProcessing?: boolean;
+}
 
 export const BuddyApp = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -12,6 +21,7 @@ export const BuddyApp = () => {
   const [showConsent, setShowConsent] = useState(false);
   const [hasConsent, setHasConsent] = useState(false);
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const { toast } = useToast();
   
   // Microphone recording refs
@@ -72,6 +82,71 @@ export const BuddyApp = () => {
     });
   };
 
+  // Convert audio blob to base64 and transcribe
+  const transcribeAudio = async (audioBlob: Blob, messageId: string) => {
+    try {
+      console.log('🔄 Converting audio to base64...');
+      
+      // Convert blob to base64
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+      const base64Audio = btoa(binaryString);
+      
+      console.log(`📤 Sending ${base64Audio.length} characters to transcribe-audio`);
+      
+      // Call Supabase edge function
+      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+        body: { audio: base64Audio }
+      });
+      
+      if (error) {
+        console.error('❌ Transcription error:', error);
+        throw error;
+      }
+      
+      console.log('📝 Transcription response:', data);
+      
+      const transcribedText = data.text || '[Could not transcribe audio]';
+      
+      // Update the message with transcribed text
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { ...msg, content: transcribedText, isProcessing: false }
+          : msg
+      ));
+      
+      if (!transcribedText || transcribedText.trim() === '') {
+        toast({
+          title: "Empty transcript",
+          description: "Deepgram gave an empty transcript – try again?",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Speech recognized! 🎯",
+          description: `"${transcribedText.slice(0, 50)}${transcribedText.length > 50 ? '...' : ''}"`
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Transcription failed:', error);
+      
+      // Update message with error
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { ...msg, content: '[Transcription failed]', isProcessing: false }
+          : msg
+      ));
+      
+      toast({
+        title: "Transcription failed",
+        description: "Could not convert speech to text. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Initialize microphone stream
   const initializeMicrophone = async () => {
     try {
@@ -128,19 +203,24 @@ export const BuddyApp = () => {
         }
       };
       
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         console.log(`🎵 Audio blob captured: ${audioBlob.size} bytes (${(audioBlob.size / 1024).toFixed(2)} KB)`);
-        console.log(`🎵 Blob type: ${audioBlob.type}`);
         
-        // Log additional details
-        const durationEstimate = audioChunksRef.current.length * 100; // rough estimate
-        console.log(`🎵 Estimated duration: ~${durationEstimate}ms`);
+        // Add temporary message showing voice note captured
+        const tempMessageId = Date.now().toString();
+        const tempMessage: ChatMessage = {
+          id: tempMessageId,
+          type: 'user',
+          content: '[voice note captured]',
+          timestamp: new Date(),
+          isProcessing: true
+        };
         
-        toast({
-          title: "Audio Captured! 🎤",
-          description: `Recorded ${(audioBlob.size / 1024).toFixed(2)} KB of audio`,
-        });
+        setMessages(prev => [...prev, tempMessage]);
+        
+        // Convert to base64 and transcribe
+        await transcribeAudio(audioBlob, tempMessageId);
       };
       
       mediaRecorder.start(100); // Collect data every 100ms
@@ -243,10 +323,51 @@ export const BuddyApp = () => {
             </div>
           </Card>
           
-          {/* Placeholder for future messages */}
-          <div className="text-center text-gray-500 text-sm py-8">
-            Your conversation will appear here...
-          </div>
+          {/* Conversation Messages */}
+          {messages.length > 0 ? (
+            messages.map((message) => (
+              <Card 
+                key={message.id} 
+                className={`p-4 ${
+                  message.type === 'user' 
+                    ? 'bg-white border-gray-200 ml-8' 
+                    : 'bg-gradient-to-r from-blue-100 to-purple-100 border-blue-200 mr-8'
+                }`}
+              >
+                <div className="flex items-start space-x-3">
+                  {message.type === 'buddy' && (
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-sm">B</span>
+                    </div>
+                  )}
+                  <div className={`flex-1 ${message.type === 'user' ? 'text-right' : ''}`}>
+                    <p className={`${
+                      message.type === 'user' ? 'text-gray-700' : 'text-gray-800'
+                    } ${message.isProcessing ? 'italic opacity-75' : ''}`}>
+                      {message.content}
+                      {message.isProcessing && (
+                        <span className="inline-block ml-2 animate-pulse">...</span>
+                      )}
+                    </p>
+                    <span className="text-xs text-gray-500 mt-1 block">
+                      {message.timestamp.toLocaleTimeString()}
+                    </span>
+                  </div>
+                  {message.type === 'user' && (
+                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-gray-600 font-bold text-sm">
+                        {childProfile?.name?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            ))
+          ) : (
+            <div className="text-center text-gray-500 text-sm py-8">
+              Your conversation will appear here...
+            </div>
+          )}
         </div>
       </div>
 
