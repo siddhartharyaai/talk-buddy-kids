@@ -1,11 +1,102 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Mic, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ConsentBanner } from './ConsentBanner';
+import { ParentSettingsModal, ChildProfile } from './ParentSettingsModal';
+import { useToast } from '@/hooks/use-toast';
 
 export const BuddyApp = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
+  const [hasConsent, setHasConsent] = useState(false);
+  const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
+  const { toast } = useToast();
+
+  // Load saved data on mount
+  useEffect(() => {
+    const savedConsent = localStorage.getItem('buddy-consent');
+    const savedProfile = localStorage.getItem('buddy-child-profile');
+    
+    if (savedConsent === 'granted') {
+      setHasConsent(true);
+    } else {
+      // Show consent banner on first visit
+      setShowConsent(true);
+    }
+    
+    if (savedProfile) {
+      try {
+        setChildProfile(JSON.parse(savedProfile));
+      } catch (e) {
+        console.error('Failed to parse saved profile:', e);
+      }
+    }
+  }, []);
+
+  const handleConsentAccept = () => {
+    localStorage.setItem('buddy-consent', 'granted');
+    setHasConsent(true);
+    setShowConsent(false);
+    // Open settings to configure child profile
+    setShowSettings(true);
+    
+    toast({
+      title: "Welcome to Buddy! 🎉",
+      description: "Please set up your child's profile to get started.",
+    });
+  };
+
+  const handleConsentDecline = () => {
+    setShowConsent(false);
+    toast({
+      title: "No problem!",
+      description: "You can enable Buddy anytime from the settings.",
+      variant: "destructive"
+    });
+  };
+
+  const handleProfileSave = (profile: ChildProfile) => {
+    localStorage.setItem('buddy-child-profile', JSON.stringify(profile));
+    setChildProfile(profile);
+    
+    toast({
+      title: `Settings saved! 👋`,
+      description: `Buddy is now ready for ${profile.name}!`,
+    });
+  };
+
+  const handleMicPress = () => {
+    if (!hasConsent) {
+      setShowConsent(true);
+      return;
+    }
+    
+    if (!childProfile) {
+      setShowSettings(true);
+      toast({
+        title: "Almost ready!",
+        description: "Please set up your child's profile first.",
+      });
+      return;
+    }
+    
+    setIsRecording(true);
+    // TODO: Implement actual recording in Step 3
+  };
+
+  const getWelcomeMessage = () => {
+    if (!hasConsent) {
+      return "Welcome! Please allow parent permission to get started.";
+    }
+    
+    if (!childProfile) {
+      return "Hi! Click the settings button to set up your child's profile.";
+    }
+    
+    return `Hi ${childProfile.name}! I'm Buddy, your friendly voice companion. Press and hold the microphone to talk to me!`;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex flex-col">
@@ -17,7 +108,9 @@ export const BuddyApp = () => {
           </div>
           <div>
             <h1 className="font-bold text-xl text-gray-800">Buddy</h1>
-            <p className="text-sm text-gray-600">Kids Voice Companion</p>
+            <p className="text-sm text-gray-600">
+              {childProfile ? `for ${childProfile.name}` : 'Kids Voice Companion'}
+            </p>
           </div>
         </div>
         
@@ -42,8 +135,7 @@ export const BuddyApp = () => {
               </div>
               <div>
                 <p className="text-gray-800 text-lg">
-                  Hi there! I'm Buddy, your friendly voice companion. 
-                  Press and hold the microphone to talk to me!
+                  {getWelcomeMessage()}
                 </p>
               </div>
             </div>
@@ -67,10 +159,11 @@ export const BuddyApp = () => {
                 ? 'bg-red-500 hover:bg-red-600 scale-110 shadow-red-200' 
                 : 'bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-blue-200'
               }
+              ${(!hasConsent || !childProfile) ? 'opacity-75' : ''}
             `}
-            onMouseDown={() => setIsRecording(true)}
+            onMouseDown={handleMicPress}
             onMouseUp={() => setIsRecording(false)}
-            onTouchStart={() => setIsRecording(true)}
+            onTouchStart={handleMicPress}
             onTouchEnd={() => setIsRecording(false)}
           >
             <Mic className="w-8 h-8 text-white" />
@@ -79,31 +172,28 @@ export const BuddyApp = () => {
         
         {/* Hint Text */}
         <p className="text-center text-gray-600 text-sm mt-4">
-          {isRecording ? "🎤 Listening... Release to stop" : "Hold to speak"}
+          {!hasConsent ? "Click to get started" :
+           !childProfile ? "Set up profile first" :
+           isRecording ? "🎤 Listening... Release to stop" : 
+           "Hold to speak"}
         </p>
       </div>
 
-      {/* Settings Modal Placeholder */}
-      {showSettings && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md p-6 bg-white">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">Parent Settings</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowSettings(false)}
-                className="p-1"
-              >
-                ✕
-              </Button>
-            </div>
-            <p className="text-gray-600 text-center py-8">
-              Settings modal will be implemented in Step 2
-            </p>
-          </Card>
-        </div>
+      {/* Consent Banner */}
+      {showConsent && (
+        <ConsentBanner
+          onAccept={handleConsentAccept}
+          onDecline={handleConsentDecline}
+        />
       )}
+
+      {/* Settings Modal */}
+      <ParentSettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        onSave={handleProfileSave}
+        initialProfile={childProfile || undefined}
+      />
     </div>
   );
 };
