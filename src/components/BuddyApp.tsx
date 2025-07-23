@@ -614,9 +614,9 @@ export const BuddyApp = () => {
         throw new Error('Invalid audio format received');
       }
 
-      // Create audio with proper MIME type - Gemini TTS returns MP3 format
-      const audioDataUrl = `data:audio/mp3;base64,${data.audioContent}`;
-      console.log('🎵 Audio Data URL created, length:', audioDataUrl.length);
+      // Try multiple audio formats - Gemini TTS format can vary
+      let audioDataUrl = `data:audio/wav;base64,${data.audioContent}`;
+      console.log('🎵 Audio Data URL created (WAV format), length:', audioDataUrl.length);
       
       // Create audio element with comprehensive error handling
       const audio = new Audio();
@@ -674,10 +674,30 @@ export const BuddyApp = () => {
           readyState: audio.readyState,
           src: audio.src?.substring(0, 100) + '...'
         });
+        
+        // Try fallback format if WAV fails
+        if (audioDataUrl.includes('audio/wav')) {
+          console.log('🔄 WAV failed, trying MP3 format...');
+          audioDataUrl = `data:audio/mp3;base64,${data.audioContent}`;
+          audio.src = audioDataUrl;
+          audio.load();
+          return;
+        }
+        
+        // Try another fallback format
+        if (audioDataUrl.includes('audio/mp3')) {
+          console.log('🔄 MP3 failed, trying generic audio format...');
+          audioDataUrl = `data:audio/*;base64,${data.audioContent}`;
+          audio.src = audioDataUrl;
+          audio.load();
+          return;
+        }
+        
+        // If all formats fail, show error
         setIsSpeaking(false);
         toast({
           title: "Audio Error",
-          description: "There was a problem playing the audio",
+          description: "Browser cannot play this audio format",
           variant: "destructive"
         });
       });
