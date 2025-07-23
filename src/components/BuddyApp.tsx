@@ -368,6 +368,89 @@ export const BuddyApp = () => {
     }
   }, [hasConsent, childProfile]);
 
+  // playVoice helper function
+  const playVoice = async (text: string) => {
+    try {
+      if (!childProfile) {
+        toast({
+          title: "Profile needed",
+          description: "Please set up child profile first",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('🔊 Starting voice playback for:', text.substring(0, 50));
+      
+      // Determine language for TTS
+      const primaryLang = childProfile.language.includes('hindi') ? 'hi-IN' : 'en-IN';
+      
+      // Show starting toast
+      toast({
+        title: "🔊 Speaking...",
+        description: "Buddy is talking to you!",
+      });
+
+      // Call speak-gtts function
+      const { data, error } = await supabase.functions.invoke('speak-gtts', {
+        body: { text, lang: primaryLang }
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to generate speech');
+      }
+
+      if (!data?.audioContent) {
+        throw new Error('No audio content received');
+      }
+
+      // Convert base64 to Data URL
+      const audioDataUrl = `data:audio/mp3;base64,${data.audioContent}`;
+      
+      // Create audio element
+      const audio = new Audio(audioDataUrl);
+      
+      // Set playback rate based on age rules
+      const getPlaybackRate = (ageYears: number) => {
+        if (ageYears <= 5) return 0.8;  // Slower for young kids
+        if (ageYears <= 8) return 0.9;  // Slightly slower for elementary
+        return 1.0;  // Normal speed for older kids
+      };
+      
+      audio.playbackRate = getPlaybackRate(childProfile.ageYears);
+      
+      // Handle audio events
+      audio.addEventListener('ended', () => {
+        console.log('✅ Audio playback completed');
+        toast({
+          title: "✅ Done speaking!",
+          description: "What would you like to talk about next?",
+        });
+      });
+
+      audio.addEventListener('error', (e) => {
+        console.error('❌ Audio playback error:', e);
+        toast({
+          title: "Audio Error",
+          description: "There was a problem playing the audio",
+          variant: "destructive"
+        });
+      });
+
+      // Play the audio
+      await audio.play();
+      console.log('🎵 Audio started playing');
+
+    } catch (error) {
+      console.error('❌ Error in playVoice:', error);
+      toast({
+        title: "Voice Error",
+        description: "Sorry, I couldn't speak right now. But I can still chat with text!",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getWelcomeMessage = () => {
     if (!hasConsent) {
       return "Welcome! Please allow parent permission to get started.";
