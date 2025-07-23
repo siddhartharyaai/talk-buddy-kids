@@ -577,6 +577,7 @@ export const BuddyApp = () => {
       
       // Determine language for TTS
       const primaryLang = childProfile.language.includes('hindi') ? 'hi-IN' : 'en-IN';
+      console.log('🌐 TTS Language:', primaryLang);
       
       // Show starting toast
       toast({
@@ -585,23 +586,41 @@ export const BuddyApp = () => {
       });
 
       // Call speak-gtts function
+      console.log('📞 Calling speak-gtts function...');
       const { data, error } = await supabase.functions.invoke('speak-gtts', {
         body: { text, lang: primaryLang }
       });
+      
+      console.log('📡 TTS Response:', { data, error });
 
       if (error) {
+        console.error('❌ TTS Function Error:', error);
         throw new Error(error.message || 'Failed to generate speech');
       }
 
       if (!data?.audioContent) {
-        throw new Error('No audio content received');
+        console.error('❌ No audio content in response:', data);
+        throw new Error('No audio content received from TTS service');
       }
 
-      // Convert base64 to Data URL - Gemini TTS returns PCM/WAV format
-      const audioDataUrl = `data:audio/wav;base64,${data.audioContent}`;
+      console.log('✅ Audio content received, length:', data.audioContent.length);
+
+      // Validate base64 audio content
+      try {
+        atob(data.audioContent.substring(0, 100)); // Test first 100 chars
+        console.log('✅ Audio content is valid base64');
+      } catch (b64Error) {
+        console.error('❌ Invalid base64 audio content:', b64Error);
+        throw new Error('Invalid audio format received');
+      }
+
+      // Create audio with proper MIME type - Gemini TTS returns MP3 format
+      const audioDataUrl = `data:audio/mp3;base64,${data.audioContent}`;
+      console.log('🎵 Audio Data URL created, length:', audioDataUrl.length);
       
-      // Create audio element
-      const audio = new Audio(audioDataUrl);
+      // Create audio element with comprehensive error handling
+      const audio = new Audio();
+      console.log('🎵 Audio element created');
       
       // Set playback rate based on age rules
       const getPlaybackRate = (ageYears: number) => {
@@ -611,6 +630,20 @@ export const BuddyApp = () => {
       };
       
       audio.playbackRate = getPlaybackRate(childProfile.ageYears);
+      console.log('🎛️ Playback rate set to:', audio.playbackRate);
+
+      // Setup audio event listeners BEFORE setting src
+      audio.addEventListener('loadstart', () => {
+        console.log('🎵 Audio loading started');
+      });
+
+      audio.addEventListener('canplay', () => {
+        console.log('🎵 Audio can start playing');
+      });
+
+      audio.addEventListener('loadeddata', () => {
+        console.log('🎵 Audio data loaded');
+      });
       
       // Handle audio events
       setIsSpeaking(true);
@@ -634,7 +667,13 @@ export const BuddyApp = () => {
       });
 
       audio.addEventListener('error', (e) => {
-        console.error('❌ Audio playback error:', e);
+        console.error('❌ Audio element error:', e);
+        console.error('❌ Audio error details:', {
+          error: audio.error,
+          networkState: audio.networkState,
+          readyState: audio.readyState,
+          src: audio.src?.substring(0, 100) + '...'
+        });
         setIsSpeaking(false);
         toast({
           title: "Audio Error",
@@ -643,59 +682,36 @@ export const BuddyApp = () => {
         });
       });
 
-      // Play the audio - handle autoplay restrictions
+      // Set the audio source and load
+      audio.src = audioDataUrl;
+      console.log('🎵 Audio source set');
+      audio.load();
+      console.log('🎵 Audio load() called');
+
+      // Set speaking state before attempting to play
+      setIsSpeaking(true);
+
+      // Try to play the audio with comprehensive error handling
       try {
-        await audio.play();
-        console.log('🎵 Audio started playing');
+        console.log('🎵 Attempting to play audio...');
+        const playPromise = audio.play();
+        
+        if (playPromise !== undefined) {
+          await playPromise;
+          console.log('✅ Audio started playing successfully');
+        }
       } catch (playError) {
-        console.error('❌ Audio autoplay blocked:', playError);
+        console.error('❌ Audio play error:', playError);
         
         // Check if it's an autoplay restriction
         if (playError.name === 'NotAllowedError') {
+          console.log('🚫 Autoplay blocked, requesting user interaction');
           setIsSpeaking(false);
           toast({
             title: "🔊 Audio Permission Needed",
-            description: "Please click to enable audio playback, then try again!",
+            description: "Click anywhere to enable audio, then try speaking again!",
             variant: "destructive"
           });
-          
-          // Create a user-interactive audio element
-          const interactiveAudio = new Audio(audioDataUrl);
-          interactiveAudio.playbackRate = getPlaybackRate(childProfile.ageYears);
-          
-          // Wait for user click to play
-          const playOnClick = () => {
-            interactiveAudio.play().then(() => {
-              console.log('🎵 Audio playing after user interaction');
-              setIsSpeaking(true);
-              
-              interactiveAudio.addEventListener('ended', () => {
-                console.log('✅ Audio playback completed');
-                setIsSpeaking(false);
-                
-                // Confetti for young kids
-                if (childProfile && childProfile.ageYears <= 7) {
-                  confetti({
-                    particleCount: 50,
-                    spread: 70,
-                    origin: { y: 0.6 }
-                  });
-                }
-                
-                toast({
-                  title: "✅ Done speaking!",
-                  description: "What would you like to talk about next?",
-                });
-              });
-              
-              document.removeEventListener('click', playOnClick);
-            }).catch(err => {
-              console.error('❌ Still cannot play audio:', err);
-              setIsSpeaking(false);
-            });
-          };
-          
-          document.addEventListener('click', playOnClick, { once: true });
           return;
         } else {
           throw playError;
@@ -707,7 +723,7 @@ export const BuddyApp = () => {
       setIsSpeaking(false);
       toast({
         title: "Voice Error",
-        description: "Sorry, I couldn't speak right now. But I can still chat with text!",
+        description: `Audio failed: ${error.message}`,
         variant: "destructive"
       });
     }
