@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Mic, Settings } from 'lucide-react';
+import { Mic, Settings, Volume2, MessageSquare, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConsentBanner } from './ConsentBanner';
 import { ParentSettingsModal, ChildProfile } from './ParentSettingsModal';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import confetti from 'canvas-confetti';
 
 export interface ChatMessage {
   id: string;
@@ -25,6 +26,7 @@ export const BuddyApp = () => {
   const [hasConsent, setHasConsent] = useState(false);
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const { toast } = useToast();
   
   // Microphone recording refs
@@ -306,6 +308,9 @@ export const BuddyApp = () => {
         description: "Your AI friend is ready to chat!"
       });
       
+      // Step 7.5: Call playVoice after Buddy reply
+      await playVoice(aiResponse);
+      
     } catch (error) {
       console.error('❌ AI response failed:', error);
       
@@ -447,23 +452,84 @@ export const BuddyApp = () => {
     stopRecording();
   };
 
-  // CORS self-test for speak-gtts function
-  const testSpeakFunction = async () => {
+  // Step 7.7: Regression self-test functions
+  const testSTT = async () => {
     try {
-      console.log('🧪 Testing speak-gtts CORS...');
-      const { data, error } = await supabase.functions.invoke('speak-gtts', {
-        body: { text: 'Test', lang: 'en-IN' }
-      });
-      console.log('✅ speak-gtts CORS test result:', data ? 'SUCCESS' : 'FAILED', { data, error });
+      toast({ title: "🧪 Testing Speech-to-Text...", description: "Recording 3 seconds of audio" });
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      
+      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        
+        // Convert to base64
+        const arrayBuffer = await blob.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+        const base64Audio = btoa(binaryString);
+        
+        const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+          body: { audio: base64Audio }
+        });
+        
+        if (error) throw error;
+        toast({ 
+          title: "✅ STT Test Complete", 
+          description: `Result: "${data.text || 'No text detected'}"` 
+        });
+        
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      mediaRecorder.start();
+      setTimeout(() => mediaRecorder.stop(), 3000);
     } catch (error) {
-      console.error('❌ speak-gtts CORS test failed:', error);
+      console.error('STT test failed:', error);
+      toast({ title: "❌ STT Test Failed", description: error.message, variant: "destructive" });
+    }
+  };
+  
+  const testLLM = async () => {
+    try {
+      toast({ title: "🧪 Testing LLM...", description: "Sending test message to Gemini" });
+      
+      const { data, error } = await supabase.functions.invoke('ask-gemini', {
+        body: { 
+          message: "Say hello in exactly 5 words.",
+          childProfile: childProfile || { name: "Test", ageYears: 8, language: ['english'] }
+        }
+      });
+      
+      if (error) throw error;
+      toast({ 
+        title: "✅ LLM Test Complete", 
+        description: `Response: "${data.response?.substring(0, 50)}..."` 
+      });
+    } catch (error) {
+      console.error('LLM test failed:', error);
+      toast({ title: "❌ LLM Test Failed", description: error.message, variant: "destructive" });
+    }
+  };
+  
+  const testTTS = async () => {
+    try {
+      toast({ title: "🧪 Testing Text-to-Speech...", description: "Playing test audio" });
+      await playVoice("This is a test of the text to speech system.");
+      toast({ title: "✅ TTS Test Complete", description: "Audio should have played" });
+    } catch (error) {
+      console.error('TTS test failed:', error);
+      toast({ title: "❌ TTS Test Failed", description: error.message, variant: "destructive" });
     }
   };
 
-  // Run CORS test on mount (only once)
+  // Run TTS test on mount (only once) - Step 7.7 integration
   useEffect(() => {
     if (hasConsent && childProfile) {
-      testSpeakFunction();
+      // Auto-test TTS when profile is ready
+      testTTS();
     }
   }, [hasConsent, childProfile]);
 
@@ -519,8 +585,18 @@ export const BuddyApp = () => {
       audio.playbackRate = getPlaybackRate(childProfile.ageYears);
       
       // Handle audio events
+      setIsSpeaking(true);
       audio.addEventListener('ended', () => {
         console.log('✅ Audio playback completed');
+        setIsSpeaking(false);
+        
+        // Step 7.6: Add confetti animation after speech
+        confetti({
+          particleCount: 50,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+        
         toast({
           title: "✅ Done speaking!",
           description: "What would you like to talk about next?",
@@ -529,6 +605,7 @@ export const BuddyApp = () => {
 
       audio.addEventListener('error', (e) => {
         console.error('❌ Audio playback error:', e);
+        setIsSpeaking(false);
         toast({
           title: "Audio Error",
           description: "There was a problem playing the audio",
@@ -542,6 +619,7 @@ export const BuddyApp = () => {
 
     } catch (error) {
       console.error('❌ Error in playVoice:', error);
+      setIsSpeaking(false);
       toast({
         title: "Voice Error",
         description: "Sorry, I couldn't speak right now. But I can still chat with text!",
@@ -623,6 +701,37 @@ export const BuddyApp = () => {
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Step 7.7: Self-test buttons */}
+          <div className="flex gap-1 mr-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={testSTT}
+              className="p-1 hover:bg-blue-100 rounded text-xs"
+              title="Test Speech-to-Text"
+            >
+              <Mic className="w-4 h-4 text-blue-600" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={testLLM}
+              className="p-1 hover:bg-purple-100 rounded text-xs"
+              title="Test Language Model"
+            >
+              <Brain className="w-4 h-4 text-purple-600" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={testTTS}
+              className="p-1 hover:bg-green-100 rounded text-xs"
+              title="Test Text-to-Speech"
+            >
+              <Volume2 className="w-4 h-4 text-green-600" />
+            </Button>
+          </div>
+          
           <Button
             variant="ghost"
             size="sm"
@@ -711,13 +820,15 @@ export const BuddyApp = () => {
       {/* Bottom Controls */}
       <div className="p-6 bg-white/80 backdrop-blur-sm border-t border-blue-200">
         <div className="max-w-2xl mx-auto flex justify-center">
-          {/* Big Mic Button */}
+          {/* Big Mic Button with animations */}
           <Button
             className={`
               w-20 h-20 rounded-full shadow-lg transition-all duration-200 
               ${isRecording 
-                ? 'bg-red-500 hover:bg-red-600 scale-110 shadow-red-200' 
-                : 'bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-blue-200'
+                ? 'bg-red-500 hover:bg-red-600 scale-110 shadow-red-200 animate-pulse' 
+                : isSpeaking
+                ? 'bg-green-500 hover:bg-green-600 scale-105 shadow-green-200 animate-pulse'
+                : 'bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-blue-200 hover-scale'
               }
               ${(!hasConsent || !childProfile) ? 'opacity-75' : ''}
             `}
@@ -725,15 +836,17 @@ export const BuddyApp = () => {
             onMouseUp={handleMicRelease}
             onTouchStart={handleMicPress}
             onTouchEnd={handleMicRelease}
+            disabled={isSpeaking}
           >
-            <Mic className="w-8 h-8 text-white" />
+            <Mic className={`w-8 h-8 text-white ${isRecording ? 'animate-bounce' : ''}`} />
           </Button>
         </div>
         
-        {/* Hint Text */}
-        <p className="text-center text-gray-600 text-sm mt-4">
+        {/* Hint Text with animations */}
+        <p className="text-center text-gray-600 text-sm mt-4 animate-fade-in">
           {!hasConsent ? "Click to get started" :
            !childProfile ? "Set up profile first" :
+           isSpeaking ? "🔊 Buddy is speaking..." :
            isRecording ? "🎤 Listening... Release to stop" : 
            "Hold to speak"}
         </p>
