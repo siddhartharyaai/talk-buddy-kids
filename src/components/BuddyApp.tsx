@@ -5,6 +5,7 @@ import { ParentSettingsModal } from './ParentSettingsModal';
 import { ConsentBanner } from './ConsentBanner';
 import { DevConsole } from './DevConsole';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface ChildProfile {
   name: string | null;
@@ -16,6 +17,47 @@ export interface ChatMessage {
   role: "child" | "buddy";
   text: string;
   ts: number;
+}
+
+// Utility: convert Blob → ArrayBuffer
+async function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
+  return await blob.arrayBuffer();
+}
+
+// Add transcribeAudio helper
+async function transcribeAudio(blob: Blob): Promise<string> {
+  // Get Deepgram API key from Supabase secrets
+  const { data: { secrets }, error } = await supabase.functions.invoke('get-secrets', {
+    body: { keys: ['DEEPGRAM_API_KEY'] }
+  });
+  
+  if (error || !secrets?.DEEPGRAM_API_KEY) {
+    throw new Error('Deepgram API key not configured');
+  }
+
+  // Convert to ArrayBuffer
+  const buffer = await blobToArrayBuffer(blob);
+
+  // Build Deepgram request
+  const resp = await fetch("https://api.deepgram.com/v1/listen?model=nova&language=hi", {
+    method: "POST",
+    headers: {
+      "Authorization": `Token ${secrets.DEEPGRAM_API_KEY}`,
+      "Content-Type": "audio/webm"
+    },
+    body: buffer
+  });
+
+  if (!resp.ok) {
+    console.error("Deepgram error", resp.status, await resp.text());
+    throw new Error(`STT failed ${resp.status}`);
+  }
+
+  const dg = await resp.json();
+  const text =
+    dg?.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
+
+  return text.trim();
 }
 
 export function BuddyApp() {
@@ -121,7 +163,7 @@ export function BuddyApp() {
         }
       };
       
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const blob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
         setAudioBlob(blob);
         
@@ -134,6 +176,26 @@ export function BuddyApp() {
           ts: Date.now()
         };
         setChatLog(prev => [...prev, voiceMessage]);
+        
+        // NEW: call Deepgram
+        setTranscriptText("…"); // reset
+        try {
+          const tx = await transcribeAudio(blob);
+          setTranscriptText(tx);
+
+          // Replace [voice note captured] bubble with real text
+          setChatLog(prev => [
+            ...prev.slice(0, -1),
+            { role: "child", text: tx || "[inaudible]", ts: Date.now() }
+          ]);
+
+        } catch (err) {
+          toast({ 
+            title: "Speech‑to‑text error", 
+            description: String(err), 
+            variant: "destructive" 
+          });
+        }
         
         // Clean up stream
         if (streamRef.current) {
