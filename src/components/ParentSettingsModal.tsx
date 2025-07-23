@@ -57,11 +57,11 @@ export const ParentSettingsModal = ({
   return (
     <TooltipProvider>
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-        <Card className="w-full max-w-md p-6 bg-white">
-        <div className="space-y-6">
+        <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 bg-white">
+        <div className="space-y-8">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-800">
-              👨‍👩‍👧‍👦 Child Settings
+            <h2 className="text-2xl font-bold text-gray-800">
+              👨‍👩‍👧‍👦 Child Profile Setup
             </h2>
             <Button
               variant="ghost"
@@ -73,243 +73,270 @@ export const ParentSettingsModal = ({
             </Button>
           </div>
 
-          {/* Child Name */}
-          <div className="space-y-2">
-            <Label htmlFor="childName" className="text-sm font-medium text-gray-700">
-              Child's Name
-            </Label>
-            <Input
-              id="childName"
-              type="text"
-              value={profile.name}
-              onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-              placeholder="Enter your child's name"
-              className="w-full"
-            />
-          </div>
-
-          {/* Age Group */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium text-gray-700">
-              Age Group
-            </Label>
-            <RadioGroup
-              value={profile.ageGroup}
-              onValueChange={(value) => setProfile({ ...profile, ageGroup: value as ChildProfile['ageGroup'] })}
-              className="space-y-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="3-5" id="age-3-5" />
-                <Label htmlFor="age-3-5" className="text-sm cursor-pointer">
-                  3-5 years (Preschool)
+          {/* Basic Information Section */}
+          <div className="bg-gray-50 p-6 rounded-lg space-y-6">
+            <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">
+              Basic Information
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Child Name */}
+              <div className="space-y-2">
+                <Label htmlFor="childName" className="text-sm font-medium text-gray-700">
+                  Child's Name
                 </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="6-8" id="age-6-8" />
-                <Label htmlFor="age-6-8" className="text-sm cursor-pointer">
-                  6-8 years (Early Elementary)
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="9-12" id="age-9-12" />
-                <Label htmlFor="age-9-12" className="text-sm cursor-pointer">
-                  9-12 years (Elementary)
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {/* Age in Years */}
-          <div className="space-y-2">
-            <Label htmlFor="ageYears" className="text-sm font-medium text-gray-700">
-              Exact Age (years)
-            </Label>
-            <Input
-              id="ageYears"
-              type="number"
-              min="3"
-              max="12"
-              value={profile.ageYears}
-              onChange={(e) => setProfile({ ...profile, ageYears: parseInt(e.target.value) || 3 })}
-              className="w-full"
-            />
-          </div>
-
-          {/* Gender */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium text-gray-700">
-              Gender
-            </Label>
-            <Select value={profile.gender} onValueChange={(value) => setProfile({ ...profile, gender: value as ChildProfile['gender'] })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select gender" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="boy">Boy</SelectItem>
-                <SelectItem value="girl">Girl</SelectItem>
-                <SelectItem value="other">Other/Prefer not to say</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Interests */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Label className="text-sm font-medium text-gray-700">
-                Interests (select all that apply)
-              </Label>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="cursor-help text-gray-400 hover:text-gray-600">ℹ️</span>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p>Select topics your child enjoys. Buddy will use these to make conversations more engaging and give examples from their favorite subjects.</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {['Animals', 'Science', 'Art', 'Music', 'Sports', 'Stories', 'Games', 'Nature'].map((interest) => (
-                <div key={interest} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`interest-${interest}`}
-                    checked={profile.interests.includes(interest)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setProfile({ ...profile, interests: [...profile.interests, interest] });
-                      } else {
-                        setProfile({ ...profile, interests: profile.interests.filter(i => i !== interest) });
-                      }
-                    }}
-                  />
-                  <Label htmlFor={`interest-${interest}`} className="text-sm cursor-pointer">
-                    {interest}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Learning Goals */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Label className="text-sm font-medium text-gray-700">
-                Learning Goals (select all that apply)
-              </Label>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="cursor-help text-gray-400 hover:text-gray-600">ℹ️</span>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p>Choose areas you'd like your child to develop. Buddy will tailor activities and questions to support these learning objectives.</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {['Reading Skills', 'Math Concepts', 'Creative Thinking', 'Problem Solving', 'Language Learning', 'Social Skills'].map((goal) => (
-                <div key={goal} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`goal-${goal}`}
-                    checked={profile.learningGoals.includes(goal)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setProfile({ ...profile, learningGoals: [...profile.learningGoals, goal] });
-                      } else {
-                        setProfile({ ...profile, learningGoals: profile.learningGoals.filter(g => g !== goal) });
-                      }
-                    }}
-                  />
-                  <Label htmlFor={`goal-${goal}`} className="text-sm cursor-pointer">
-                    {goal}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Energy Level */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Label className="text-sm font-medium text-gray-700">
-                Energy Level
-              </Label>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="cursor-help text-gray-400 hover:text-gray-600">ℹ️</span>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p>This helps Buddy match your child's natural energy. High energy kids get more active suggestions, while calm kids get quieter activities.</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <RadioGroup
-              value={profile.energyLevel}
-              onValueChange={(value) => setProfile({ ...profile, energyLevel: value as ChildProfile['energyLevel'] })}
-              className="space-y-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="low" id="energy-low" />
-                <Label htmlFor="energy-low" className="text-sm cursor-pointer">
-                  😌 Calm & Quiet
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="medium" id="energy-medium" />
-                <Label htmlFor="energy-medium" className="text-sm cursor-pointer">
-                  😊 Balanced
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="high" id="energy-high" />
-                <Label htmlFor="energy-high" className="text-sm cursor-pointer">
-                  🚀 High Energy & Active
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {/* Language Preference - Now Multi-Select */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium text-gray-700">
-              Languages (select all that apply)
-            </Label>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="lang-english"
-                  checked={profile.language.includes('english')}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setProfile({ ...profile, language: [...profile.language, 'english'] });
-                    } else {
-                      setProfile({ ...profile, language: profile.language.filter(l => l !== 'english') });
-                    }
-                  }}
+                <Input
+                  id="childName"
+                  type="text"
+                  value={profile.name}
+                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                  placeholder="Enter your child's name"
+                  className="w-full"
                 />
-                <Label htmlFor="lang-english" className="text-sm cursor-pointer">
-                  🇺🇸 English
-                </Label>
               </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="lang-hindi"
-                  checked={profile.language.includes('hindi')}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setProfile({ ...profile, language: [...profile.language, 'hindi'] });
-                    } else {
-                      setProfile({ ...profile, language: profile.language.filter(l => l !== 'hindi') });
-                    }
-                  }}
-                />
-                <Label htmlFor="lang-hindi" className="text-sm cursor-pointer">
-                  🇮🇳 Hindi (हिंदी)
+
+              {/* Exact Age */}
+              <div className="space-y-2">
+                <Label htmlFor="ageYears" className="text-sm font-medium text-gray-700">
+                  Exact Age (years)
                 </Label>
+                <Input
+                  id="ageYears"
+                  type="number"
+                  min="3"
+                  max="12"
+                  value={profile.ageYears}
+                  onChange={(e) => setProfile({ ...profile, ageYears: parseInt(e.target.value) || 3 })}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Age Group */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-gray-700">
+                  Age Group
+                </Label>
+                <RadioGroup
+                  value={profile.ageGroup}
+                  onValueChange={(value) => setProfile({ ...profile, ageGroup: value as ChildProfile['ageGroup'] })}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="3-5" id="age-3-5" />
+                    <Label htmlFor="age-3-5" className="text-sm cursor-pointer">
+                      3-5 years (Preschool)
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="6-8" id="age-6-8" />
+                    <Label htmlFor="age-6-8" className="text-sm cursor-pointer">
+                      6-8 years (Early Elementary)
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="9-12" id="age-9-12" />
+                    <Label htmlFor="age-9-12" className="text-sm cursor-pointer">
+                      9-12 years (Elementary)
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Gender */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-gray-700">
+                  Gender
+                </Label>
+                <Select value={profile.gender} onValueChange={(value) => setProfile({ ...profile, gender: value as ChildProfile['gender'] })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="boy">Boy</SelectItem>
+                    <SelectItem value="girl">Girl</SelectItem>
+                    <SelectItem value="other">Other/Prefer not to say</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Learning Preferences Section */}
+          <div className="bg-gray-50 p-6 rounded-lg space-y-6">
+            <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">
+              Learning Preferences
+            </h3>
+            
+            {/* Interests */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Interests (select all that apply)
+                </Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help text-gray-400 hover:text-gray-600">ℹ️</span>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>Select topics your child enjoys. Buddy will use these to make conversations more engaging and give examples from their favorite subjects.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {['Animals', 'Science', 'Art', 'Music', 'Sports', 'Stories', 'Games', 'Nature'].map((interest) => (
+                  <div key={interest} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`interest-${interest}`}
+                      checked={profile.interests.includes(interest)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setProfile({ ...profile, interests: [...profile.interests, interest] });
+                        } else {
+                          setProfile({ ...profile, interests: profile.interests.filter(i => i !== interest) });
+                        }
+                      }}
+                    />
+                    <Label htmlFor={`interest-${interest}`} className="text-sm cursor-pointer">
+                      {interest}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Learning Goals */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Learning Goals (select all that apply)
+                </Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help text-gray-400 hover:text-gray-600">ℹ️</span>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>Choose areas you'd like your child to develop. Buddy will tailor activities and questions to support these learning objectives.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {['Reading Skills', 'Math Concepts', 'Creative Thinking', 'Problem Solving', 'Language Learning', 'Social Skills'].map((goal) => (
+                  <div key={goal} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`goal-${goal}`}
+                      checked={profile.learningGoals.includes(goal)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setProfile({ ...profile, learningGoals: [...profile.learningGoals, goal] });
+                        } else {
+                          setProfile({ ...profile, learningGoals: profile.learningGoals.filter(g => g !== goal) });
+                        }
+                      }}
+                    />
+                    <Label htmlFor={`goal-${goal}`} className="text-sm cursor-pointer">
+                      {goal}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Personality & Language Section */}
+          <div className="bg-gray-50 p-6 rounded-lg space-y-6">
+            <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">
+              Personality & Language
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Energy Level */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm font-medium text-gray-700">
+                    Energy Level
+                  </Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help text-gray-400 hover:text-gray-600">ℹ️</span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>This helps Buddy match your child's natural energy. High energy kids get more active suggestions, while calm kids get quieter activities.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <RadioGroup
+                  value={profile.energyLevel}
+                  onValueChange={(value) => setProfile({ ...profile, energyLevel: value as ChildProfile['energyLevel'] })}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="low" id="energy-low" />
+                    <Label htmlFor="energy-low" className="text-sm cursor-pointer">
+                      😌 Calm & Quiet
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="medium" id="energy-medium" />
+                    <Label htmlFor="energy-medium" className="text-sm cursor-pointer">
+                      😊 Balanced
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="high" id="energy-high" />
+                    <Label htmlFor="energy-high" className="text-sm cursor-pointer">
+                      🚀 High Energy & Active
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Language Preference */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-gray-700">
+                  Languages (select all that apply)
+                </Label>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="lang-english"
+                      checked={profile.language.includes('english')}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setProfile({ ...profile, language: [...profile.language, 'english'] });
+                        } else {
+                          setProfile({ ...profile, language: profile.language.filter(l => l !== 'english') });
+                        }
+                      }}
+                    />
+                    <Label htmlFor="lang-english" className="text-sm cursor-pointer">
+                      🇺🇸 English
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="lang-hindi"
+                      checked={profile.language.includes('hindi')}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setProfile({ ...profile, language: [...profile.language, 'hindi'] });
+                        } else {
+                          setProfile({ ...profile, language: profile.language.filter(l => l !== 'hindi') });
+                        }
+                      }}
+                    />
+                    <Label htmlFor="lang-hindi" className="text-sm cursor-pointer">
+                      🇮🇳 Hindi (हिंदी)
+                    </Label>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 pt-4 bg-white sticky bottom-0 border-t border-gray-200 py-4">
             <Button
               onClick={onClose}
               variant="outline"
