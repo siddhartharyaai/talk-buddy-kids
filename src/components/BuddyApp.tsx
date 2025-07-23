@@ -643,9 +643,64 @@ export const BuddyApp = () => {
         });
       });
 
-      // Play the audio
-      await audio.play();
-      console.log('🎵 Audio started playing');
+      // Play the audio - handle autoplay restrictions
+      try {
+        await audio.play();
+        console.log('🎵 Audio started playing');
+      } catch (playError) {
+        console.error('❌ Audio autoplay blocked:', playError);
+        
+        // Check if it's an autoplay restriction
+        if (playError.name === 'NotAllowedError') {
+          setIsSpeaking(false);
+          toast({
+            title: "🔊 Audio Permission Needed",
+            description: "Please click to enable audio playback, then try again!",
+            variant: "destructive"
+          });
+          
+          // Create a user-interactive audio element
+          const interactiveAudio = new Audio(audioDataUrl);
+          interactiveAudio.playbackRate = getPlaybackRate(childProfile.ageYears);
+          
+          // Wait for user click to play
+          const playOnClick = () => {
+            interactiveAudio.play().then(() => {
+              console.log('🎵 Audio playing after user interaction');
+              setIsSpeaking(true);
+              
+              interactiveAudio.addEventListener('ended', () => {
+                console.log('✅ Audio playback completed');
+                setIsSpeaking(false);
+                
+                // Confetti for young kids
+                if (childProfile && childProfile.ageYears <= 7) {
+                  confetti({
+                    particleCount: 50,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                  });
+                }
+                
+                toast({
+                  title: "✅ Done speaking!",
+                  description: "What would you like to talk about next?",
+                });
+              });
+              
+              document.removeEventListener('click', playOnClick);
+            }).catch(err => {
+              console.error('❌ Still cannot play audio:', err);
+              setIsSpeaking(false);
+            });
+          };
+          
+          document.addEventListener('click', playOnClick, { once: true });
+          return;
+        } else {
+          throw playError;
+        }
+      }
 
     } catch (error) {
       console.error('❌ Error in playVoice:', error);
