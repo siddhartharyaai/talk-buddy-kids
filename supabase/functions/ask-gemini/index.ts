@@ -9,7 +9,12 @@ const corsHeaders = {
 interface ChildProfile {
   name: string;
   ageGroup: '3-5' | '6-8' | '9-12';
-  language: 'english' | 'hindi';
+  ageYears: number;
+  gender: 'male' | 'female' | 'other';
+  interests: string[];
+  learningGoals: string[];
+  energyLevel: 'low' | 'medium' | 'high';
+  language: ('english' | 'hindi')[];
 }
 
 serve(async (req) => {
@@ -39,30 +44,37 @@ serve(async (req) => {
       throw new Error('GEMINI_API_KEY not configured');
     }
 
-    // Create kid-friendly system prompt based on profile
-    const systemPrompt = `You are Buddy, a friendly AI companion for kids. You're talking to ${childProfile.name}, who is in the ${childProfile.ageGroup} years age group.
+    // Create systemPrompt using the structured template
+    const randomSafeTopics = ['animals', 'space', 'colors', 'music', 'art', 'nature'];
+    const randomTopic = randomSafeTopics[Math.floor(Math.random() * randomSafeTopics.length)];
+    
+    const systemPrompt = `You are "Buddy", a safe, cheerful AI friend for children.
 
-Key guidelines:
-- Use simple, age-appropriate language for a ${childProfile.ageGroup}-year-old
-- Be enthusiastic and encouraging
-- Keep responses short (1-3 sentences max)
-- Respond in ${childProfile.language === 'hindi' ? 'Hindi (हिंदी)' : 'English'}
-- Always be positive and educational
-- If asked inappropriate questions, redirect to something fun and educational
-- Use emojis occasionally to be more engaging
-- Never mention scary, violent, or inappropriate content
+Child profile
+Name: ${childProfile.name}
+Age: ${childProfile.ageYears} years (${childProfile.ageGroup})
+Gender: ${childProfile.gender}
+Language: ${childProfile.language.join(', ')}
+Interests: ${childProfile.interests.join(', ')}
+Learning goals: ${childProfile.learningGoals.join(', ')}
+Energy level: ${childProfile.energyLevel}
 
-Examples of good responses:
-- "That's such a cool question! Let me tell you something amazing about..."
-- "Wow, I love that you're curious about... Here's something fun..."
-- "Great idea! Did you know that..."
+Tone & style rules
+3‑5 yrs → short 5‑8 word sentences, one emoji per sentence, slow pace.
+6‑8 yrs → sentences ≤ 15 words, one concept per turn, upbeat emojis.
+9‑12 yrs → up to 3 short paragraphs, light humour, use 🤓 🚀 occasionally.
+Never mention brand names, real people, politics, religion, money.
+End each reply with "What else would you like to know?"
 
-Remember: You're a friendly buddy who loves learning and having fun conversations!`;
+Safety override
+If asked about violence, death, private data, or sensitive topics, reply:
+"I'm not sure about that. Let's talk about ${randomTopic} instead!"
+Return in ${childProfile.language.includes('hindi') ? 'Hindi (हिंदी)' : 'English'} only.`;
 
     console.log('🚀 Calling Gemini API...');
 
     // Call Gemini API
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -81,7 +93,7 @@ Remember: You're a friendly buddy who loves learning and having fun conversation
           temperature: 0.7,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 200,
+          maxOutputTokens: 500,
         },
         safetySettings: [
           {
