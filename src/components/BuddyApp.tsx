@@ -16,6 +16,8 @@ export interface ChatMessage {
 }
 
 export const BuddyApp = () => {
+  console.log('🔍 BuddyApp component starting to render...');
+
   const [isRecording, setIsRecording] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showConsent, setShowConsent] = useState(false);
@@ -29,8 +31,11 @@ export const BuddyApp = () => {
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
 
+  console.log('🔍 State initialized, running useEffect...');
+
   // Load saved data on mount
   useEffect(() => {
+    console.log('🔍 useEffect running...');
     const savedConsent = localStorage.getItem('buddy-consent');
     const savedProfile = localStorage.getItem('buddy-child-profile');
     
@@ -48,6 +53,7 @@ export const BuddyApp = () => {
         console.error('Failed to parse saved profile:', e);
       }
     }
+    console.log('🔍 useEffect completed');
   }, []);
 
   const handleConsentAccept = () => {
@@ -278,7 +284,7 @@ export const BuddyApp = () => {
     return `Hi ${childProfile.name}! I'm Buddy, your friendly voice companion. Press and hold the microphone to talk to me!`;
   };
 
-  console.log('🔍 BuddyApp rendering...', { hasConsent, childProfile, showConsent, showSettings });
+  console.log('🔍 About to render JSX...', { hasConsent, childProfile, showConsent, showSettings });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex flex-col">
