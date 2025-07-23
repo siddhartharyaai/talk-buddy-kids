@@ -44,20 +44,9 @@ serve(async (req) => {
       throw new Error('GEMINI_API_KEY not configured');
     }
 
-    // Transform profile data for the prompt
+    // Always use English only - no Hindi words at all
+    const languageInstruction = 'CRITICAL: Respond ONLY in English. Never use Hindi words like "Namaste", "Accha", "Main", etc. Use only English greetings like "Hi", "Hello", "Great", "Awesome", etc.';
     const ageBracket = childProfile.ageGroup; // Use ageGroup as ageBracket
-    const hasHindi = childProfile.language.includes('hindi');
-    const hasEnglish = childProfile.language.includes('english');
-    
-    // Language instruction
-    let languageInstruction = '';
-    if (hasHindi && hasEnglish) {
-      languageInstruction = 'Respond primarily in English, but use simple romanized Hindi phrases when appropriate (like "namaste", "accha", "kya hai"). Use Roman script only - NO Devanagari characters.';
-    } else if (hasHindi) {
-      languageInstruction = 'Respond in romanized Hindi using Roman/Latin script only (like "Namaste! Main Buddy hun. Aap kaise hain?"). NEVER use Devanagari characters.';
-    } else {
-      languageInstruction = 'Respond in English only.';
-    }
     
     // Build learning focus based on selected goals
     const learningFocusGuidelines = childProfile.learningGoals.includes('Daily Habits') || childProfile.learningGoals.includes('Manners & Values') 
