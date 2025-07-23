@@ -404,8 +404,8 @@ export const BuddyApp = () => {
         throw new Error('No audio content received');
       }
 
-      // Convert base64 to Data URL
-      const audioDataUrl = `data:audio/mp3;base64,${data.audioContent}`;
+      // Convert base64 to Data URL - Gemini TTS returns PCM/WAV format
+      const audioDataUrl = `data:audio/wav;base64,${data.audioContent}`;
       
       // Create audio element
       const audio = new Audio(audioDataUrl);

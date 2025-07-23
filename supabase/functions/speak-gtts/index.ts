@@ -20,36 +20,58 @@ serve(async req => {
       throw new Error("GEMINI_API_KEY not configured");
     }
     
-    const voiceName = lang === "hi-IN"
-      ? "voice:hi-IN-Standard-Leda"
-      : "voice:en-IN-Standard-Leda";
-      
-    console.log('🔊 Generating speech for:', { text: text.substring(0, 50), lang, voiceName });
+    // Use Leda voice for both English and Hindi (Indian languages)
+    const voiceName = "Leda";
     
+    console.log('🔊 Generating speech with Gemini TTS:', { text: text.substring(0, 50), lang, voiceName });
+    
+    // Use Gemini TTS API - correct endpoint and format
     const res = await fetch(
-      `https://texttospeech.googleusercontent.com/v1beta1/text:synthesize?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey
+        },
         body: JSON.stringify({
-          input: { text },
-          voice: { name: voiceName, languageCode: lang },
-          audioConfig: { audioEncoding: "MP3" }
+          contents: [{
+            parts: [{
+              text: text
+            }]
+          }],
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: voiceName
+                }
+              }
+            }
+          }
         })
       }
     );
     
     if (!res.ok) {
       const errorText = await res.text();
-      console.error('❌ Google TTS API error:', res.status, errorText);
-      return new Response(JSON.stringify({ error: `TTS API error: ${res.status}` }), { 
+      console.error('❌ Gemini TTS API error:', res.status, errorText);
+      return new Response(JSON.stringify({ error: `Gemini TTS API error: ${res.status}` }), { 
         status: res.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
     
-    const { audioContent } = await res.json();
-    console.log('✅ Speech generated successfully');
+    const responseData = await res.json();
+    const audioContent = responseData.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    
+    if (!audioContent) {
+      console.error('❌ No audio content in response:', responseData);
+      throw new Error('No audio content received from Gemini TTS');
+    }
+    
+    console.log('✅ Speech generated successfully with Gemini TTS');
     
     return new Response(JSON.stringify({ audioContent }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
