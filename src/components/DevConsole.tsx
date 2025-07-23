@@ -51,6 +51,26 @@ export function DevConsole({
           <Button
             variant="ghost"
             size="sm"
+            onClick={async () => {
+              try {
+                const resp = await fetch("/functions/v1/transcribe-audio", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ audio: "" })
+                });
+                const result = await resp.json();
+                alert(`STT Self-test Response:\n${JSON.stringify(result, null, 2)}`);
+              } catch (e) {
+                alert(`STT Self-test Error:\n${e}`);
+              }
+            }}
+            className="text-purple-400 hover:text-purple-300 hover:bg-gray-700 text-xs"
+          >
+            Run STT Self-test
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setIsExpanded(!isExpanded)}
             className="text-green-400 hover:text-green-300 hover:bg-gray-700"
           >

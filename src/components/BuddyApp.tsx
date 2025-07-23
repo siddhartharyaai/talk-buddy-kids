@@ -166,6 +166,15 @@ export function BuddyApp() {
           const tx = await transcribeAudio(blob);
           setTranscriptText(tx);
 
+          // Show toast if transcript is empty
+          if (tx === "") {
+            toast({
+              title: "Empty transcript",
+              description: "Deepgram gave an empty transcript – try again?",
+              variant: "destructive"
+            });
+          }
+
           // Replace [voice note captured] bubble with real text
           setChatLog(prev => [
             ...prev.slice(0, -1),
@@ -232,6 +241,9 @@ export function BuddyApp() {
       }
     ];
     setChatLog(seedMessages);
+    
+    // Print deployment message to console
+    console.log("DG patch deployed 🚀");
   }, []);
 
   return (
