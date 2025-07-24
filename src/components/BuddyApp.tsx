@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, Settings, Volume2, MessageSquare, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -37,13 +37,8 @@ export const BuddyApp = () => {
 
   console.log('🔍 State initialized, running useEffect...');
 
-  // Load saved data on mount
-  useEffect(() => {
-    console.log('🔍 useEffect running...');
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
+  // Load saved data on mount - Fixed with proper dependencies
+  const loadUserData = useCallback(async () => {
     console.log('🔍 Loading user data...');
     // Load consent from localStorage (since it's not user-specific)
     const savedConsent = localStorage.getItem('buddy-consent');
@@ -88,7 +83,12 @@ export const BuddyApp = () => {
       setShowConsent(true);
     }
     console.log('🔍 useEffect completed');
-  };
+  }, []);
+
+  useEffect(() => {
+    console.log('🔍 useEffect running...');
+    loadUserData();
+  }, [loadUserData]);
 
   const handleConsentAccept = () => {
     localStorage.setItem('buddy-consent', 'granted');
