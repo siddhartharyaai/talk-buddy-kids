@@ -658,7 +658,7 @@ export const BuddyApp = () => {
   };
 
   // Step 4-F: Content intent detection
-  const detectContentIntent = (message: string): { type: 'story' | 'rhyme' | 'sfx' | null; topic: string; action?: string } => {
+  const detectContentIntent = (message: string): { type: 'story' | 'rhyme' | null; topic: string; action?: string } => {
     const msg = message.toLowerCase();
     
     // Story detection (English and Hindi)
@@ -669,19 +669,16 @@ export const BuddyApp = () => {
     
     // Rhyme/song detection
     if (msg.includes('song') || msg.includes('rhyme') || msg.includes('sing') || msg.includes('गाना') || msg.includes('nursery')) {
-      const topic = extractTopicFromMessage(msg);
+      // Extract specific rhyme name
+      let topic = 'general';
+      if (msg.includes('twinkle')) topic = 'twinkle';
+      else if (msg.includes('mary')) topic = 'mary';
+      else if (msg.includes('baa baa')) topic = 'baa';
+      else topic = extractTopicFromMessage(msg);
+      
       return { type: 'rhyme', topic };
     }
     
-    // Sound effect detection (animal sounds, etc.)
-    if (msg.includes('roar') || msg.includes('sound like') || msg.includes('make noise') || 
-        msg.includes('bark') || msg.includes('meow') || msg.includes('moo')) {
-      const action = msg.includes('tiger') ? 'tiger_roar' :
-                   msg.includes('dog') ? 'dog_bark' :
-                   msg.includes('cat') ? 'cat_meow' :
-                   msg.includes('cow') ? 'cow_moo' : 'random';
-      return { type: 'sfx', topic: 'animals', action };
-    }
     
     return { type: null, topic: 'any' };
   };
@@ -776,7 +773,7 @@ export const BuddyApp = () => {
 
   // Handle rhyme content with singing style
   const handleRhymeContent = async (rhyme: any, messageId: string) => {
-    const rhymeText = `Let me sing you "${rhyme.title}"! ${rhyme.lyrics ? rhyme.lyrics.join('\n') : rhyme.body}`;
+    const rhymeText = `♪ Let me sing you "${rhyme.title}"! ♪\n\n${rhyme.lyrics ? rhyme.lyrics.join('\n♪ ') + ' ♪' : rhyme.body}`;
     
     setMessages(prev => prev.map(msg => 
       msg.id === messageId
@@ -784,9 +781,72 @@ export const BuddyApp = () => {
         : msg
     ));
     
-    // TODO: Use Deepgram TTS with singing style when available
-    await playVoice(rhymeText);
+    // Use slower, more melodic speech for singing effect
+    await playVoiceWithStyle(rhymeText, 'singing');
   };
+
+  // Enhanced playVoice with style support
+  const playVoiceWithStyle = useCallback(async (text: string, style: 'normal' | 'singing' = 'normal') => {
+    try {
+      if (!text || text.trim() === '') {
+        console.log('⚠️ Empty text provided to playVoiceWithStyle');
+        return;
+      }
+
+      console.log(`🔊 Starting voice playback with ${style} style:`, text.substring(0, 50));
+
+      // For singing style, modify text to be more melodic
+      let processedText = text;
+      if (style === 'singing') {
+        // Add pauses and emphasis for singing effect
+        processedText = text
+          .replace(/♪/g, '') // Remove music notes for TTS
+          .replace(/\n/g, '... ') // Add pauses between lines
+          .replace(/,/g, ', ') // Longer pauses at commas
+          .replace(/!/g, '!... '); // Emphasis on exclamations
+      }
+
+      const { data, error } = await supabase.functions.invoke('speak-gtts', {
+        body: { 
+          text: processedText,
+          style: style === 'singing' ? 'expressive' : 'normal'
+        }
+      });
+
+      if (error) {
+        console.error('❌ TTS Function Error:', error);
+        throw new Error(error.message || 'Failed to generate speech');
+      }
+
+      if (!data?.audioContent) {
+        console.error('❌ No audio content in response');
+        throw new Error('No audio content received from TTS service');
+      }
+
+      // Create and play audio
+      const audioBlob = new Blob([Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))], { type: 'audio/mp3' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      audio.onloadstart = () => setIsSpeaking(true);
+      audio.onended = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.onerror = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      await audio.play();
+
+    } catch (error) {
+      console.error('❌ playVoiceWithStyle failed:', error);
+      setIsSpeaking(false);
+      // Fallback to regular playVoice
+      await playVoice(text);
+    }
+  }, [playVoice]);
 
 
   // Get AI response from Buddy - Enhanced with content switchboard (Step 4-F)

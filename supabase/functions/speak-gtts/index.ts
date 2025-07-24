@@ -27,7 +27,7 @@ serve(async req => {
   try {
     console.log('🔊 Speak-gtts function called (Step 4: Deepgram TTS Pipeline)');
     
-    const { text } = await req.json(); // Only accept text, ignore any language parameter
+    const { text, style } = await req.json(); 
     if (!text) throw new Error("no text");
     
     const apiKey = Deno.env.get("DEEPGRAM_API_KEY");
@@ -35,7 +35,17 @@ serve(async req => {
       throw new Error("DEEPGRAM_API_KEY not configured");
     }
     
-    console.log('🔊 Generating speech with Deepgram TTS (MP3 format):', { text: text.substring(0, 50) });
+    console.log('🔊 Generating speech with Deepgram TTS:', { 
+      text: text.substring(0, 50), 
+      style: style || 'normal' 
+    });
+    
+    // Select voice model based on style
+    const voiceModel = style === 'singing' || style === 'expressive' 
+      ? 'aura-2-luna-en'  // More expressive, melodic voice
+      : 'aura-2-amalthea-en'; // Standard friendly voice
+    
+    console.log(`🎵 Using voice model: ${voiceModel} for style: ${style || 'normal'}`);
     
     // Self-test messages for validation
     const testLines = [
@@ -45,9 +55,9 @@ serve(async req => {
     ];
     console.log('📋 Self-test lines ready:', testLines);
     
-    // Use Deepgram TTS API with maximum speed optimizations
+    // Use Deepgram TTS API with voice selection
     const res = await fetch(
-      `https://api.deepgram.com/v1/speak?model=aura-2-amalthea-en&encoding=mp3`,
+      `https://api.deepgram.com/v1/speak?model=${voiceModel}&encoding=mp3`,
       {
         method: "POST",
         headers: { 

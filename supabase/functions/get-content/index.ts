@@ -168,16 +168,37 @@ async function getRhymeContent(language: string, age: number, topic: string) {
       throw new Error('No rhymes available');
     }
 
-    // For now, return a random rhyme file
+    // Filter rhyme files
     const rhymeFiles = files.filter(f => f.name.endsWith('.json'));
     if (rhymeFiles.length === 0) {
       throw new Error('No rhyme files found');
     }
 
-    const randomFile = rhymeFiles[Math.floor(Math.random() * rhymeFiles.length)];
+    console.log(`🎵 Looking for rhyme matching: "${topic}"`);
+    console.log(`📁 Available rhyme files:`, rhymeFiles.map(f => f.name));
+
+    // Try to find a matching rhyme first
+    let selectedFile = null;
+    
+    // Look for Twinkle Twinkle specifically
+    if (topic.toLowerCase().includes('twinkle')) {
+      selectedFile = rhymeFiles.find(f => 
+        f.name.toLowerCase().includes('twinkle') || 
+        f.name.toLowerCase().includes('star')
+      );
+    }
+    
+    // If no specific match, return a random rhyme
+    if (!selectedFile) {
+      selectedFile = rhymeFiles[Math.floor(Math.random() * rhymeFiles.length)];
+      console.log(`🎲 No specific match found, using random rhyme: ${selectedFile.name}`);
+    } else {
+      console.log(`🎯 Found matching rhyme: ${selectedFile.name}`);
+    }
+
     const { data } = await supabase.storage
       .from('content')
-      .download(`${folderPath}${randomFile.name}`);
+      .download(`${folderPath}${selectedFile.name}`);
 
     if (!data) {
       throw new Error('Failed to download rhyme file');
