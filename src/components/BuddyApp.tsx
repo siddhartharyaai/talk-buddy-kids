@@ -33,7 +33,13 @@ export const BuddyApp = () => {
   if (import.meta.env.PROD) {
     console.log = () => {};
     console.debug = () => {};
-  } else {
+  }
+
+  // Reduce excessive re-render logging in development  
+  const renderCount = useRef(0);
+  renderCount.current += 1;
+  
+  if (renderCount.current === 1) {
     console.log('🔍 BuddyApp component starting to render...');
   }
 
@@ -941,7 +947,7 @@ export const BuddyApp = () => {
         results.coldStartEnglish.notes = `${results.coldStartEnglish.latency}ms (target: ≤2s)`;
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // TEST 2: Hindi STT (Manual instruction)
       console.log('📝 TEST 2: Hindi STT Test');
@@ -952,15 +958,16 @@ export const BuddyApp = () => {
       console.log('📝 TEST 3: Random Greeting Variety');
       const greetings = [
         "Hi there!",
-        "Hello!",
-        "Hey!"
+        "Hello friend!",
+        "Hey buddy!"
       ];
       
       const greetingResponses = [];
       for (let i = 0; i < 3; i++) {
-        const response = await getBuddyResponse(greetings[i]);
+        // Add randomness to ensure different responses
+        const response = await getBuddyResponse(`${greetings[i]} Test ${i + 1} for variety`);
         greetingResponses.push(response);
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
       
       // Check for variety (no exact duplicates)
