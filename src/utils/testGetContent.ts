@@ -16,7 +16,7 @@ export const testGetContent = async () => {
     
     if (error) {
       console.error('❌ get-content error:', error);
-      return { error };
+      return { error: error.message || String(error) };
     }
     
     console.log('✅ get-content result:', data);
@@ -24,6 +24,6 @@ export const testGetContent = async () => {
     
   } catch (err) {
     console.error('❌ get-content failed:', err);
-    return { error: err.message };
+    return { error: err?.message || String(err) };
   }
 };

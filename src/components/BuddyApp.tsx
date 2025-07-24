@@ -1740,7 +1740,7 @@ export const BuddyApp = () => {
                 toast({ title: "Test story uploaded!", description: "Now try asking for a story about animals" });
               } catch (error) {
                 console.error('❌ Upload failed:', error);
-                toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+                toast({ title: "Upload failed", description: error?.message || "Unknown error", variant: "destructive" });
               }
             }}
             className="p-2 hover:bg-gray-100 rounded-full"
@@ -1758,14 +1758,14 @@ export const BuddyApp = () => {
                 toast({ title: "Testing content fetch...", description: "Checking if get-content works" });
                 const result = await testGetContent();
                 if (result.error) {
-                  toast({ title: "Content fetch failed", description: result.error, variant: "destructive" });
+                  toast({ title: "Content fetch failed", description: String(result.error), variant: "destructive" });
                 } else {
                   toast({ title: "Content found!", description: `Story: ${result.content?.title || 'Unknown'}` });
                 }
                 console.log('📖 Test content result:', result);
               } catch (error) {
                 console.error('❌ Test failed:', error);
-                toast({ title: "Test failed", description: error.message, variant: "destructive" });
+                toast({ title: "Test failed", description: error?.message || "Unknown error", variant: "destructive" });
               }
             }}
             className="p-2 hover:bg-gray-100 rounded-full"

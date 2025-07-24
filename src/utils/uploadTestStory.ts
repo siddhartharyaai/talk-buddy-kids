@@ -26,11 +26,14 @@ const uploadTestStory = async () => {
 
     if (error) {
       console.error('❌ Upload error:', error);
+      throw new Error(error.message || String(error));
     } else {
       console.log('✅ Test story uploaded:', data);
+      return data;
     }
   } catch (err) {
     console.error('❌ Upload failed:', err);
+    throw new Error(err?.message || String(err));
   }
 };
 
