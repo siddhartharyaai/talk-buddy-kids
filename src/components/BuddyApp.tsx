@@ -667,43 +667,33 @@ export const BuddyApp = () => {
           throw new Error(`Audio playback failed: ${audio.error?.message || 'Unknown error'}`);
         });
 
-        // SURESHOT USER INTERACTION METHOD
+        // FIXED: Simplified and working audio play logic
         const attemptPlay = async () => {
           try {
             console.log('🎵 Attempting to play audio...');
-            setIsSpeaking(true);
             await audio.play();
-            console.log('✅ Audio playing successfully!');
-            
             setIsSpeaking(true);
-            console.log('🎵 Buddy is speaking!');
+            console.log('✅ Audio playing successfully!');
             
           } catch (playError) {
             console.error('❌ Play failed:', playError);
             
             if (playError.name === 'NotAllowedError') {
-              setIsSpeaking(false);
+              console.log('🔊 Need user interaction for audio');
               
-              console.log('🔊 User needs to click to play audio');
-              
-              // Enhanced user interaction handler
-              const enableAudio = async (event: Event) => {
-                console.log('👆 User interaction detected:', event.type);
+              // Simple user interaction handler
+              const enableAudio = async () => {
                 try {
-                  setIsSpeaking(true);
                   await audio.play();
-                  console.log('✅ Audio playing after user interaction!');
-                  
                   setIsSpeaking(true);
-                  console.log('✅ Audio playing after user interaction!');
+                  console.log('✅ Audio enabled after user interaction!');
                   
-                  // Remove all listeners
+                  // Remove listeners
                   document.removeEventListener('click', enableAudio);
                   document.removeEventListener('touchstart', enableAudio);
-                  document.removeEventListener('keydown', enableAudio);
                   
                 } catch (retryError) {
-                  console.error('❌ Still failed after user interaction:', retryError);
+                  console.error('❌ Audio still failed:', retryError);
                   setIsSpeaking(false);
                   URL.revokeObjectURL(audioUrl);
                   
@@ -715,7 +705,7 @@ export const BuddyApp = () => {
                 }
               };
               
-              // Multiple interaction types
+              // Add interaction listeners
               document.addEventListener('click', enableAudio, { once: true });
               document.addEventListener('touchstart', enableAudio, { once: true });
               document.addEventListener('keydown', enableAudio, { once: true });
