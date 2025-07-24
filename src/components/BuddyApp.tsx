@@ -45,7 +45,7 @@ export const BuddyApp = () => {
 
   const [isRecording, setIsRecording] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [hasGreeted, setHasGreeted] = useState(false);
+  const [hasGreeted, setHasGreeted] = useState(false); // Resets on every app refresh/reload
   const [showConsent, setShowConsent] = useState(false);
   const [hasConsent, setHasConsent] = useState(false);
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
@@ -658,29 +658,31 @@ export const BuddyApp = () => {
     }
   }, [childProfile, playVoice, addTranscript, loadLearningMemory, updateLearningMemory]);
 
-  // Auto-send greeting when user first logs in to trigger audio permission - Fixed with useCallback
+  // Auto-send welcome greeting on fresh app load - Always greets when app opens/refreshes
   const sendAutoGreeting = useCallback(async () => {
     if (!childProfile || hasGreeted) return;
     
-    console.log('🤖 Sending auto-greeting to trigger audio permission...');
+    console.log('🤖 Fresh app load detected - sending welcome greeting...');
     
-    // Auto-send a greeting from the "user" to trigger the conversation
-    const autoMessage = "Hi Buddy!";
+    // Use a more natural welcome message for fresh app loads
+    const welcomeMessage = "Hi Buddy! I just opened the app!";
     
-    // Add user message
+    // Add user message to trigger greeting
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
-      content: autoMessage,
+      content: welcomeMessage,
       timestamp: new Date(),
       isProcessing: false
     };
     
     setMessages(prev => [...prev, userMsg]);
     
-    // Get AI response which will trigger audio
-    await getBuddyResponse(autoMessage);
+    // Get AI welcome response which will include proper greeting
+    await getBuddyResponse(welcomeMessage);
     setHasGreeted(true);
+    
+    console.log('✅ Welcome greeting completed for fresh app session');
   }, [childProfile, hasGreeted, getBuddyResponse]);
 
   // Step 5: Random Greeting Logic with 15-entry array and duplicate prevention - Fixed with useCallback

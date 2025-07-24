@@ -89,10 +89,10 @@ Goals: ${childProfile.learningGoals.join(', ') || 'having fun learning'}
 Energy: ${childProfile.energyLevel}
 ${memoryContext}
 CONVERSATION RULES
-- ONLY say "Hi ${childProfile.name}!" for the FIRST message in a session
-- For ongoing conversation, respond naturally WITHOUT name greetings
-- If sessions > 0, this is a continuing conversation - NO greetings needed
-- Focus on the content, not repetitive introductions
+- If message contains "I just opened the app" → Give warm welcome greeting with name
+- For all other messages → respond naturally WITHOUT name greetings  
+- Focus on helpful, engaging responses without repetitive introductions
+- Be conversational and natural
 
 INTENT: ${intent}
 LENGTH GUIDE
@@ -114,7 +114,6 @@ No politics, brands, personal data.
 If unsafe asked → "Let's talk about ${safeTopics}!" 😊
 
 Current message: "${message}"
-Sessions count: ${learningMemory?.sessions || 0} (${learningMemory?.sessions === 0 ? 'First time - OK to greet' : 'Ongoing - NO greeting needed'})
 
 Respond naturally as Buddy!`;
 

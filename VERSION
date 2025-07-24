@@ -1,8 +1,23 @@
-# 🤖 BUDDY AI COMPANION - VERSION 1.03
+# 🤖 BUDDY AI COMPANION - VERSION 1.04
 
-## 🚀 **LATEST BUILD: Buddy v1.03** - Performance & Testing Optimization
+## 🚀 **LATEST BUILD: Buddy v1.04** - Fresh App Load Greeting Fix
 **Release Date**: January 24, 2025  
-**Status**: ✅ PRODUCTION READY - Optimized Performance & Test Suite
+**Status**: ✅ PRODUCTION READY - Natural Greeting UX
+
+---
+
+## 📝 **CHANGELOG v1.04** - FRESH APP LOAD GREETING FIX
+
+### **🎭 NATURAL GREETING EXPERIENCE**
+- ✅ **Fresh App Load Greeting** - Always greets child when opening/refreshing app
+- ✅ **Session-Based Flow** - No repetitive greetings during ongoing conversation  
+- ✅ **Natural UX** - "Hi [Name]!" only on app open, then natural conversation
+- ✅ **Smart Detection** - AI recognizes fresh app loads vs ongoing chats
+
+### **🔧 TECHNICAL IMPROVEMENTS**
+- ✅ **State Management** - hasGreeted resets on every app refresh/reload
+- ✅ **AI Prompt Optimization** - Conversation rules based on app load detection
+- ✅ **Welcome Message Logic** - Triggers proper greeting for fresh sessions
 
 ---
 
