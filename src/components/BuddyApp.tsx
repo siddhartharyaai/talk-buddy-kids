@@ -437,14 +437,23 @@ export const BuddyApp = () => {
               // Play bedtime message and lock until morning
               setTimeout(() => {
                 playVoice(bedtimeMsg);
-                // TODO: Lock mic until bedtimeEnd
+                // Step 3: Lock mic until bedtimeEnd (tomorrow morning)
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const [bedtimeEndHour, bedtimeEndMin] = usageRules.bedtimeEnd.split(':').map(Number);
+                tomorrow.setHours(bedtimeEndHour, bedtimeEndMin, 0, 0);
+                localStorage.setItem('micLockedUntil', tomorrow.getTime().toString());
               }, 1000);
             } else if (!isHealthMessage && import.meta.env.PROD && hasExceededDailyLimit(updatedTelemetry, usageRules, usageRules.timezone)) {
               console.log('⏰ Daily limit exceeded - playing limit message');
               const limitMsg = getDailyLimitMessage(childProfile.name);
               setTimeout(() => {
                 playVoice(limitMsg);
-                // TODO: Lock mic for rest of day
+                // Step 3: Lock mic for rest of day (until tomorrow 6:30 AM default)
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                tomorrow.setHours(6, 30, 0, 0); // Tomorrow 6:30 AM
+                localStorage.setItem('micLockedUntil', tomorrow.getTime().toString());
               }, 1000);
             } else if (!isHealthMessage && import.meta.env.PROD && shouldBreak(updatedTelemetry, usageRules, usageRules.timezone)) {
               console.log('🧘‍♀️ Break time - encouraging healthy habits');
@@ -459,7 +468,9 @@ export const BuddyApp = () => {
               
               setTimeout(() => {
                 playVoice(breakMsg);
-                // TODO: Pause mic for 30 seconds
+                // Step 3: Lock mic for 30 seconds break
+                const breakEndTime = Date.now() + 30000; // 30 seconds
+                localStorage.setItem('breakLockedUntil', breakEndTime.toString());
               }, 1000);
             }
             
@@ -1049,6 +1060,29 @@ export const BuddyApp = () => {
       toast({
         title: "Almost ready!",
         description: "Please set up your child's profile first.",
+      });
+      return;
+    }
+
+    // Step 3: Check if mic is locked until tomorrow (daily limit reached)
+    const micLockedUntil = localStorage.getItem('micLockedUntil');
+    if (micLockedUntil && Date.now() < Number(micLockedUntil)) {
+      const unlockTime = new Date(Number(micLockedUntil)).toLocaleTimeString();
+      toast({
+        title: "Daily limit reached 🌙",
+        description: `Microphone locked until ${unlockTime}. Rest is important!`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Step 3: Check if still in 30-second break period
+    const breakLockedUntil = localStorage.getItem('breakLockedUntil');
+    if (breakLockedUntil && Date.now() < Number(breakLockedUntil)) {
+      const remainingSeconds = Math.ceil((Number(breakLockedUntil) - Date.now()) / 1000);
+      toast({
+        title: "Break time! 🛌",
+        description: `Please wait ${remainingSeconds} more seconds before speaking again.`,
       });
       return;
     }
