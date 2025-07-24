@@ -78,6 +78,16 @@ Recent chats: ${learningMemory.recentTopics || 'just starting our conversation'}
 Preferred length: ~${learningMemory.preferredSentenceLen} words
 ` : '';
 
+    // Step H: Cultural hints for Indian-English context
+    const getCultureHints = (language: string) => {
+      if (language.includes('hindi')) {
+        return 'Cultural context: Use Hindi words when appropriate. Common terms: hello=नमस्ते, goodbye=अलविदा, good_morning=सुप्रभात. Animals: elephant=हाथी, tiger=बाघ, lion=शेर.';
+      }
+      return 'Cultural context: Use Indian-English terms when appropriate. Food: lunch=tiffin, snack=tiffin, dinner=khana, water=paani. Family: grandmother=dadi/nani, aunt=aunty, uncle=uncle ji.';
+    };
+
+    const cultureHints = getCultureHints(childProfile.language.join(', '));
+
     const systemPrompt = `You are "Buddy", a cheerful AI friend.
 
 CHILD PROFILE
@@ -87,6 +97,7 @@ Lang: ${childProfile.language.join(', ')}
 Likes: ${childProfile.interests.join(', ') || 'exploring new things'}
 Goals: ${childProfile.learningGoals.join(', ') || 'having fun learning'}
 Energy: ${childProfile.energyLevel}
+${cultureHints}
 ${memoryContext}
 CONVERSATION RULES
 - If message contains "I just opened the app" → Give warm welcome greeting with name

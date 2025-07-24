@@ -17,7 +17,8 @@ import {
   getDailyLimitMessage,
   getBedtimeMessage,
   getDefaultTimezone,
-  initializeDailyTelemetry
+  initializeDailyTelemetry,
+  getDayPart
 } from '../utils/usageTimers';
 import confetti from 'canvas-confetti';
 
@@ -382,15 +383,18 @@ export const BuddyApp = () => {
       // Create audio element
       const audio = new Audio(audioUrl);
       
-      // Set playback rate based on age (Step 4 requirement)
-      const getPlaybackRate = (ageYears: number) => {
-        if (ageYears <= 5) return 0.8;  // Slower for younger kids
-        if (ageYears <= 8) return 0.9;  // Moderate for middle
-        return 1.0;                     // Normal for older kids
+      // Set playback rate based on profile speech speed setting (Step F)
+      const getPlaybackRate = (profile: ChildProfile) => {
+        const speedSetting = profile.speechSpeed || (profile.ageYears < 7 ? 'slow' : 'normal');
+        switch (speedSetting) {
+          case 'slow': return 0.85;
+          case 'fast': return 1.15;
+          default: return 1.0; // normal
+        }
       };
       
-      audio.playbackRate = getPlaybackRate(childProfile.ageYears);
-      console.log(`🎛️ Playback rate set to: ${audio.playbackRate} for age ${childProfile.ageYears}`);
+      audio.playbackRate = getPlaybackRate(childProfile);
+      console.log(`🎛️ Playback rate set to: ${audio.playbackRate} for speed setting: ${childProfile.speechSpeed || 'auto'}`);
 
       // Promise-based audio playback with health checks
       return new Promise<void>((resolve, reject) => {
@@ -759,8 +763,10 @@ export const BuddyApp = () => {
     
     console.log('🤖 Fresh app load detected - sending welcome greeting...');
     
-    // Use a more natural welcome message for fresh app loads
-    const welcomeMessage = "Hi Buddy! I just opened the app!";
+    // Step G: Include timezone-based day part in greeting
+    const timezone = childProfile.usage_rules?.timezone || getDefaultTimezone();
+    const dayPart = getDayPart(timezone);
+    const welcomeMessage = `${dayPart}! Hi Buddy! I just opened the app!`;
     
     // Add user message to trigger greeting
     const userMsg: ChatMessage = {

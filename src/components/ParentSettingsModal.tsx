@@ -22,6 +22,7 @@ export interface ChildProfile {
   learningGoals: string[];
   energyLevel: 'low' | 'medium' | 'high';
   language: ('english' | 'hindi')[];
+  speechSpeed?: 'slow' | 'normal' | 'fast'; // Step F: Speech-speed slider
   usage_rules?: UsageRules;
   daily_telemetry?: DailyTelemetry;
 }
@@ -60,7 +61,8 @@ export const ParentSettingsModal = ({
       interests: [],
       learningGoals: [],
       energyLevel: 'medium',
-      language: ['english']
+      language: ['english'],
+      speechSpeed: 'normal' // Step F: Default speech speed
     };
   });
 
@@ -367,6 +369,47 @@ export const ParentSettingsModal = ({
                       </div>
                     </div>
                   </div>
+                </div>
+                
+                {/* Step F: Speech Speed Slider */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium text-gray-700">
+                      Speech Speed
+                    </Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help text-gray-400 hover:text-gray-600">ℹ️</span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>Controls how fast Buddy speaks. Slower speeds are better for younger children and language learners.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <RadioGroup
+                    value={profile.speechSpeed || (profile.ageYears < 7 ? 'slow' : 'normal')}
+                    onValueChange={(value) => setProfile({ ...profile, speechSpeed: value as ChildProfile['speechSpeed'] })}
+                    className="space-y-2"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="slow" id="speed-slow" />
+                      <Label htmlFor="speed-slow" className="text-sm cursor-pointer">
+                        🐢 Slow (0.85x) - Best for younger kids
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="normal" id="speed-normal" />
+                      <Label htmlFor="speed-normal" className="text-sm cursor-pointer">
+                        🗣️ Normal (1.0x) - Standard speed
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="fast" id="speed-fast" />
+                      <Label htmlFor="speed-fast" className="text-sm cursor-pointer">
+                        🏃 Fast (1.15x) - For confident listeners
+                      </Label>
+                    </div>
+                  </RadioGroup>
                 </div>
               </div>
             </TabsContent>
