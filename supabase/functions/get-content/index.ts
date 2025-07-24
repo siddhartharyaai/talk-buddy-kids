@@ -203,19 +203,26 @@ async function getRhymeContent(language: string, age: number, topic: string) {
 async function getSfxContent(topic: string) {
   const folderPath = 'sfx/';
   
+  console.log(`🔍 getSfxContent called with topic: "${topic}"`);
+  
   try {
+    console.log(`📁 Listing SFX files in folder: ${folderPath}`);
     const { data: files, error } = await supabase.storage
       .from('content')
       .list(folderPath);
 
+    console.log(`📄 Found ${files?.length || 0} files:`, files?.map(f => f.name) || []);
+    
     if (error || !files || files.length === 0) {
       throw new Error('No sound effects available');
     }
 
     // Filter by topic/name matching - look for JSON metadata files
+    console.log(`🔍 Looking for JSON files matching topic: "${topic}"`);
     const matchingFiles = [];
     
     for (const file of files) {
+      console.log(`📋 Checking file: ${file.name}`);
       if (file.name.endsWith('.json')) {
         try {
           const { data } = await supabase.storage
@@ -225,22 +232,31 @@ async function getSfxContent(topic: string) {
           if (data) {
             const text = await data.text();
             const sfxData = JSON.parse(text);
+            console.log(`📋 SFX data loaded:`, sfxData);
             
             // Check if SFX matches topic
             const sfxText = (sfxData.name + ' ' + (sfxData.tags?.join(' ') || '') + ' ' + (sfxData.description || '')).toLowerCase();
+            console.log(`🔍 Matching "${topic}" against: "${sfxText}"`);
             if (sfxText.includes(topic.toLowerCase()) || topic === 'any') {
+              console.log(`✅ Match found! Adding SFX: ${sfxData.name}`);
               matchingFiles.push({
                 ...sfxData,
                 fileName: file.name
               });
+            } else {
+              console.log(`❌ No match for topic "${topic}" in "${sfxText}"`);
             }
           }
         } catch (err) {
           console.error(`Error reading SFX file ${file.name}:`, err);
         }
+      } else {
+        console.log(`⏭️ Skipping non-JSON file: ${file.name}`);
       }
+
     }
 
+    console.log(`📊 Found ${matchingFiles.length} matching SFX files`);
     if (matchingFiles.length === 0) {
       throw new Error(`No sound effects found for topic: ${topic}`);
     }
