@@ -22,6 +22,7 @@ import {
 } from '../utils/usageTimers';
 import { populateContentLibrary, verifyContent } from '../utils/populateContent';
 import { uploadTestStory } from '../utils/uploadTestStory';
+import { testGetContent } from '../utils/testGetContent';
 import confetti from 'canvas-confetti';
 
 export interface ChatMessage {
@@ -1746,6 +1747,31 @@ export const BuddyApp = () => {
             title="Upload Test Story"
           >
             📚
+          </Button>
+          
+          {/* Test get-content function */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              try {
+                toast({ title: "Testing content fetch...", description: "Checking if get-content works" });
+                const result = await testGetContent();
+                if (result.error) {
+                  toast({ title: "Content fetch failed", description: result.error, variant: "destructive" });
+                } else {
+                  toast({ title: "Content found!", description: `Story: ${result.content?.title || 'Unknown'}` });
+                }
+                console.log('📖 Test content result:', result);
+              } catch (error) {
+                console.error('❌ Test failed:', error);
+                toast({ title: "Test failed", description: error.message, variant: "destructive" });
+              }
+            }}
+            className="p-2 hover:bg-gray-100 rounded-full"
+            title="Test Get Content"
+          >
+            🔍
           </Button>
           
           {/* Test buttons for smoke tests */}
