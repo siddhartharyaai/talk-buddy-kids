@@ -20,6 +20,7 @@ import {
   initializeDailyTelemetry,
   getDayPart
 } from '../utils/usageTimers';
+import { populateContentLibrary, verifyContent } from '../utils/populateContent';
 import confetti from 'canvas-confetti';
 
 export interface ChatMessage {
@@ -1724,6 +1725,30 @@ export const BuddyApp = () => {
             className="p-2 hover:bg-gray-100 rounded-full"
           >
             <Settings className="w-6 h-6 text-gray-600" />
+          </Button>
+          
+          {/* Temporary populate content button for testing */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              try {
+                toast({ title: "Populating content...", description: "This may take a minute" });
+                const result = await populateContentLibrary();
+                toast({ title: "Content populated!", description: `Imported ${result.summary?.totalImported || 0} items` });
+                
+                // Verify content was created
+                const verification = await verifyContent();
+                console.log('📁 Content verification:', verification);
+              } catch (error) {
+                console.error('❌ Population failed:', error);
+                toast({ title: "Population failed", description: error.message, variant: "destructive" });
+              }
+            }}
+            className="p-2 hover:bg-gray-100 rounded-full"
+            title="Populate Content Library"
+          >
+            <Brain className="w-6 h-6 text-gray-600" />
           </Button>
           <Button
             variant="ghost"
