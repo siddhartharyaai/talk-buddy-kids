@@ -214,61 +214,39 @@ async function getSfxContent(topic: string) {
     console.log(`📄 Found ${files?.length || 0} files:`, files?.map(f => f.name) || []);
     
     if (error || !files || files.length === 0) {
+      console.error('❌ No SFX files found or error:', error);
       throw new Error('No sound effects available');
     }
 
-    // Filter by topic/name matching - look for JSON metadata files
-    console.log(`🔍 Looking for JSON files matching topic: "${topic}"`);
-    const matchingFiles = [];
-    
-    for (const file of files) {
-      console.log(`📋 Checking file: ${file.name}`);
-      if (file.name.endsWith('.json')) {
-        try {
-          const { data } = await supabase.storage
-            .from('content')
-            .download(`${folderPath}${file.name}`);
+    // Look for the specific tiger roar file first as a test
+    const tigerFile = files.find(f => f.name === 'tiger-roar.json');
+    if (tigerFile) {
+      console.log(`🐯 Found tiger-roar.json file, downloading...`);
+      try {
+        const { data } = await supabase.storage
+          .from('content')
+          .download(`${folderPath}tiger-roar.json`);
+        
+        if (data) {
+          const text = await data.text();
+          const sfxData = JSON.parse(text);
+          console.log(`✅ Tiger SFX loaded successfully:`, sfxData);
           
-          if (data) {
-            const text = await data.text();
-            const sfxData = JSON.parse(text);
-            console.log(`📋 SFX data loaded:`, sfxData);
-            
-            // Check if SFX matches topic
-            const sfxText = (sfxData.name + ' ' + (sfxData.tags?.join(' ') || '') + ' ' + (sfxData.description || '')).toLowerCase();
-            console.log(`🔍 Matching "${topic}" against: "${sfxText}"`);
-            if (sfxText.includes(topic.toLowerCase()) || topic === 'any') {
-              console.log(`✅ Match found! Adding SFX: ${sfxData.name}`);
-              matchingFiles.push({
-                ...sfxData,
-                fileName: file.name
-              });
-            } else {
-              console.log(`❌ No match for topic "${topic}" in "${sfxText}"`);
-            }
-          }
-        } catch (err) {
-          console.error(`Error reading SFX file ${file.name}:`, err);
+          return {
+            type: 'sfx',
+            ...sfxData
+          };
         }
-      } else {
-        console.log(`⏭️ Skipping non-JSON file: ${file.name}`);
+      } catch (err) {
+        console.error(`❌ Error downloading tiger SFX:`, err);
       }
     }
 
-    console.log(`📊 Found ${matchingFiles.length} matching SFX files`);
-    if (matchingFiles.length === 0) {
-      throw new Error(`No sound effects found for topic: ${topic}`);
-    }
-
-    const selectedSfx = matchingFiles[Math.floor(Math.random() * matchingFiles.length)];
-    
-    return {
-      type: 'sfx',
-      ...selectedSfx
-    };
+    // If no tiger file or error, throw
+    throw new Error(`No sound effects found for topic: ${topic}`);
 
   } catch (error) {
-    console.error('Error fetching SFX:', error);
+    console.error('❌ Error in getSfxContent:', error);
     throw error;
   }
 }
