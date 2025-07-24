@@ -177,7 +177,7 @@ ${contentFromLibrary.type === 'sfx' ? `SFX FROM LIBRARY:
 Sound: ${contentFromLibrary.name}
 Description: ${contentFromLibrary.description || 'Animal sound effect'}
 
-IMPORTANT: When SFX requested, say "Listen to this!" then make the actual sound with your voice like "ROARRRRR!" for a tiger roar. Use dramatic, loud sound effects that will be fun when spoken by text-to-speech. Then encourage the child to try making the sound too!` : ''}
+IMPORTANT: When SFX requested, acknowledge the sound effect and make the appropriate sound vocally (like "ROAAAAR!" for tiger). Be playful and imitate the sound with enthusiasm!` : ''}
 ` : ''}
 
 CONVERSATION RULES
