@@ -771,13 +771,87 @@ export const BuddyApp = () => {
       return;
     }
     
+    console.log('🎤 Starting recording...');
     setIsRecording(true);
-    // Start recording logic would go here
+    
+    try {
+      // Request microphone permission and start recording
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 16000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true
+        }
+      });
+      
+      streamRef.current = stream;
+      audioChunksRef.current = [];
+      
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      
+      mediaRecorderRef.current = mediaRecorder;
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+          console.log('📹 Audio chunk recorded:', event.data.size, 'bytes');
+        }
+      };
+      
+      mediaRecorder.onstop = async () => {
+        console.log('🛑 Recording stopped, processing audio...');
+        
+        if (audioChunksRef.current.length > 0) {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          console.log('🎵 Audio blob created:', audioBlob.size, 'bytes');
+          
+          // Create temporary message for transcription
+          const tempMessage: ChatMessage = {
+            id: `temp-${Date.now()}`,
+            type: 'user',
+            content: '🎤 Processing...',
+            timestamp: new Date(),
+            isProcessing: true
+          };
+          
+          setMessages(prev => [...prev, tempMessage]);
+          
+          // Transcribe and get AI response
+          await transcribeAudio(audioBlob, tempMessage.id);
+        }
+        
+        // Clean up
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
+      };
+      
+      mediaRecorder.start(100); // Collect data every 100ms
+      console.log('✅ Recording started successfully');
+      
+    } catch (error) {
+      console.error('❌ Failed to start recording:', error);
+      setIsRecording(false);
+      
+      toast({
+        title: "Microphone access needed",
+        description: "Please allow microphone access to talk to Buddy!",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleMicRelease = () => {
+    console.log('🔇 Stopping recording...');
     setIsRecording(false);
-    // Stop recording logic would go here
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
   };
 
   // Test functions - Fixed implementation  
