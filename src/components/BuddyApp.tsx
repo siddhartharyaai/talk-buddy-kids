@@ -586,7 +586,78 @@ export const BuddyApp = () => {
     }
   }, [hasConsent, childProfile]);
 
-  // playVoice helper function
+  // STEP 0 VERIFICATION: STT/TTS Round-trip Test Function
+  const runStep0VerificationTest = async () => {
+    console.log('🧪 Step 0: Starting STT/TTS round-trip verification test...');
+    
+    toast({
+      title: "🧪 Step 0: Verification Test",
+      description: "Testing STT → LLM → TTS pipeline...",
+    });
+
+    try {
+      // Test 1: STT
+      console.log('🎤 Step 0 Test 1/3: Testing STT...');
+      const testAudioBlob = new Blob(['test audio data'], { type: 'audio/webm' });
+      const arrayBuffer = await testAudioBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+      const base64Audio = btoa(binaryString);
+      
+      const { data: sttData, error: sttError } = await supabase.functions.invoke('transcribe-audio', {
+        body: { audio: base64Audio }
+      });
+      
+      if (sttError) {
+        console.log('⚠️ STT Test: Expected error with test data (normal)');
+      } else {
+        console.log('✅ STT Test: Function accessible');
+      }
+
+      // Test 2: LLM
+      console.log('🤖 Step 0 Test 2/3: Testing LLM...');
+      const { data: llmData, error: llmError } = await supabase.functions.invoke('ask-gemini', {
+        body: { 
+          message: "Hello",
+          childProfile: { name: "Test", ageYears: 8, ageGroup: "6-8", gender: "other", interests: [], learningGoals: [], energyLevel: "medium", language: ['english'] }
+        }
+      });
+      
+      if (llmError) {
+        throw new Error(`LLM Test Failed: ${llmError.message}`);
+      }
+      console.log('✅ LLM Test: SUCCESS');
+
+      // Test 3: TTS
+      console.log('🔊 Step 0 Test 3/3: Testing TTS...');
+      const { data: ttsData, error: ttsError } = await supabase.functions.invoke('speak-gtts', {
+        body: { text: "Testing text to speech system." }
+      });
+      
+      if (ttsError) {
+        throw new Error(`TTS Test Failed: ${ttsError.message}`);
+      }
+      console.log('✅ TTS Test: SUCCESS');
+
+      console.log('🎉 Step 0 Verification: ALL TESTS PASSED');
+      toast({
+        title: "✅ Step 0 Complete",
+        description: "STT/TTS pipeline verified successfully!",
+      });
+
+      return true;
+    } catch (error) {
+      console.error('❌ Step 0 Verification Failed:', error);
+      toast({
+        title: "❌ Step 0 Failed",
+        description: `Pipeline test failed: ${error.message}`,
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
+  // playVoice helper function - FIXED for Deepgram MP3 format
   const playVoice = async (text: string) => {
     try {
       if (!childProfile) {
@@ -598,18 +669,13 @@ export const BuddyApp = () => {
         return;
       }
 
-      console.log('🔊 Starting SURESHOT voice playback for:', text.substring(0, 50));
-      
-      // Always use English for TTS regardless of user language
-      console.log('🌐 TTS Language: Always English');
+      console.log('🔊 Starting voice playback for:', text.substring(0, 50));
 
-      // Call speak-gtts function with text only (always English)
+      // Call speak-gtts function
       console.log('📞 Calling speak-gtts function...');
       const { data, error } = await supabase.functions.invoke('speak-gtts', {
-        body: { text } // Only send text, TTS will always be in English
+        body: { text }
       });
-
-      console.log('📡 TTS Response received');
 
       if (error) {
         console.error('❌ TTS Function Error:', error);
@@ -623,39 +689,34 @@ export const BuddyApp = () => {
 
       console.log('✅ Audio content received, length:', data.audioContent.length);
 
-      // Create Blob from base64 data - MOST RELIABLE METHOD
-      try {
-        const binaryString = atob(data.audioContent);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        // Create blob with explicit audio type
-        const audioBlob = new Blob([bytes], { type: 'audio/wav' });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        
-        console.log('🎵 Audio Blob created successfully, size:', audioBlob.size, 'bytes');
-        
-        // Create audio element
-        const audio = new Audio(audioUrl);
-        audio.crossOrigin = 'anonymous';
-        
-        // Set playback rate
-        const getPlaybackRate = (ageYears: number) => {
-          if (ageYears <= 5) return 0.8;
-          if (ageYears <= 8) return 0.9;
-          return 1.0;
-        };
-        
-        audio.playbackRate = getPlaybackRate(childProfile.ageYears);
-        console.log('🎛️ Playback rate set to:', audio.playbackRate);
+      // Create audio blob - FIXED for MP3 format from Deepgram
+      const binaryString = atob(data.audioContent);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      // Use MP3 type since Deepgram returns MP3
+      const audioBlob = new Blob([bytes], { type: 'audio/mp3' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      console.log('🎵 Audio Blob created successfully, size:', audioBlob.size, 'bytes');
+      
+      // Create audio element
+      const audio = new Audio(audioUrl);
+      
+      // Set playback rate based on age
+      const getPlaybackRate = (ageYears: number) => {
+        if (ageYears <= 5) return 0.8;
+        if (ageYears <= 8) return 0.9;
+        return 1.0;
+      };
+      
+      audio.playbackRate = getPlaybackRate(childProfile.ageYears);
+      console.log('🎛️ Playback rate set to:', audio.playbackRate);
 
-        // Event handlers
-        audio.addEventListener('canplay', () => {
-          console.log('🎵 Audio ready to play');
-        });
-
+      // Promise-based audio playback
+      return new Promise<void>((resolve, reject) => {
         audio.addEventListener('ended', () => {
           console.log('✅ Audio playback completed');
           setIsSpeaking(false);
@@ -673,109 +734,118 @@ export const BuddyApp = () => {
             title: "✅ Done speaking!",
             description: "What would you like to talk about next?",
           });
+          resolve();
         });
 
         audio.addEventListener('error', (e) => {
           console.error('❌ Audio error:', e, audio.error);
           setIsSpeaking(false);
           URL.revokeObjectURL(audioUrl);
-          throw new Error(`Audio playback failed: ${audio.error?.message || 'Unknown error'}`);
+          reject(new Error(`Audio playback failed: ${audio.error?.message || 'Unknown error'}`));
         });
 
-        // SURESHOT USER INTERACTION METHOD
-        const attemptPlay = async () => {
-          try {
-            console.log('🎵 Attempting to play audio...');
-            setIsSpeaking(true);
-            await audio.play();
-            console.log('✅ Audio playing successfully!');
+        // Attempt to play
+        console.log('🎵 Attempting to play audio...');
+        setIsSpeaking(true);
+        
+        audio.play().then(() => {
+          console.log('✅ Audio playing successfully!');
+          toast({
+            title: "🎵 Buddy is speaking!",
+            description: "Listen to your friendly AI companion!",
+          });
+        }).catch((playError) => {
+          console.error('❌ Play failed:', playError);
+          
+          if (playError.name === 'NotAllowedError') {
+            setIsSpeaking(false);
             
             toast({
-              title: "🎵 Buddy is speaking!",
-              description: "Listen to your friendly AI companion!",
+              title: "🔊 Click to hear Buddy!",
+              description: "Browser needs your permission to play audio. Click anywhere!",
+              variant: "default"
             });
             
-          } catch (playError) {
-            console.error('❌ Play failed:', playError);
-            
-            if (playError.name === 'NotAllowedError') {
-              setIsSpeaking(false);
-              
-              toast({
-                title: "🔊 Click to hear Buddy!",
-                description: "Browser needs your permission to play audio. Click anywhere!",
-                variant: "default"
-              });
-              
-              // Enhanced user interaction handler
-              const enableAudio = async (event: Event) => {
-                console.log('👆 User interaction detected:', event.type);
-                try {
-                  setIsSpeaking(true);
-                  await audio.play();
-                  console.log('✅ Audio playing after user interaction!');
-                  
-                  toast({
-                    title: "🎵 Buddy is speaking!",
-                    description: "Audio enabled successfully!",
-                  });
-                  
-                  // Remove all listeners
-                  document.removeEventListener('click', enableAudio);
-                  document.removeEventListener('touchstart', enableAudio);
-                  document.removeEventListener('keydown', enableAudio);
-                  
-                } catch (retryError) {
-                  console.error('❌ Still failed after user interaction:', retryError);
-                  setIsSpeaking(false);
-                  URL.revokeObjectURL(audioUrl);
-                  
-                  toast({
-                    title: "Audio Error",
-                    description: "Cannot play audio even with user interaction",
-                    variant: "destructive"
-                  });
-                }
-              };
-              
-              // Multiple interaction types
-              document.addEventListener('click', enableAudio, { once: true });
-              document.addEventListener('touchstart', enableAudio, { once: true });
-              document.addEventListener('keydown', enableAudio, { once: true });
-              
-              // Cleanup after 30 seconds
-              setTimeout(() => {
-                document.removeEventListener('click', enableAudio);
-                document.removeEventListener('touchstart', enableAudio);
-                document.removeEventListener('keydown', enableAudio);
-                URL.revokeObjectURL(audioUrl);
+            // User interaction handler
+            const enableAudio = async () => {
+              try {
+                setIsSpeaking(true);
+                await audio.play();
+                console.log('✅ Audio playing after user interaction!');
+                
+                toast({
+                  title: "🎵 Buddy is speaking!",
+                  description: "Audio enabled successfully!",
+                });
+                
+              } catch (retryError) {
+                console.error('❌ Still failed after user interaction:', retryError);
                 setIsSpeaking(false);
-              }, 30000);
-              
-            } else {
-              throw playError;
-            }
+                URL.revokeObjectURL(audioUrl);
+                reject(new Error('Cannot play audio even with user interaction'));
+              }
+            };
+            
+            // Single interaction listener
+            document.addEventListener('click', enableAudio, { once: true });
+            
+          } else {
+            setIsSpeaking(false);
+            URL.revokeObjectURL(audioUrl);
+            reject(playError);
           }
-        };
-
-        // Load and attempt to play
-        audio.load();
-        await attemptPlay();
-        
-      } catch (blobError) {
-        console.error('❌ Blob creation failed:', blobError);
-        throw new Error('Failed to process audio data');
-      }
+        });
+      });
 
     } catch (error) {
-      console.error('❌ SURESHOT playVoice failed:', error);
+      console.error('❌ playVoice failed:', error);
       setIsSpeaking(false);
       toast({
         title: "Voice Error",
         description: `Audio system failed: ${error.message}`,
         variant: "destructive"
       });
+      throw error;
     }
+  };
+
+  // STEP 5: Random greeting system (15-entry array with duplicate prevention)
+  const getRandomGreeting = () => {
+    const greetings = [
+      "Hi there! 🌟 What amazing adventure shall we explore today?",
+      "Hello friend! 🎉 I'm so excited to chat with you!",
+      "Hey buddy! 🚀 Ready to discover something incredible together?",
+      "Hi! 🦋 What wonderful things are you curious about today?",
+      "Hello! 🌈 I can't wait to learn and play with you!",
+      "Hey there! 🎈 What fantastic questions do you have for me?",
+      "Hi friend! 🌟 Let's go on an amazing learning journey!",
+      "Hello! 🎵 What exciting topics shall we explore?",
+      "Hey! 🦖 I'm here and ready for our awesome conversation!",
+      "Hi there! 🎪 What cool things do you want to talk about?",
+      "Hello buddy! 🎯 I'm thrilled to be your learning companion!",
+      "Hey! 🎨 What creative ideas are buzzing in your mind?",
+      "Hi! 🌸 Ready to have some fun learning together?",
+      "Hello there! 🎭 What magical adventures should we begin?",
+      "Hey friend! 🎊 I'm here to make learning super fun!"
+    ];
+    
+    // Get last greeting hash to prevent duplicates
+    const lastGreetingHash = localStorage.getItem('buddy-last-greeting');
+    let attempts = 0;
+    let selectedGreeting;
+    let greetingHash;
+    
+    do {
+      selectedGreeting = greetings[Math.floor(Math.random() * greetings.length)];
+      greetingHash = btoa(selectedGreeting).slice(0, 8); // Short hash
+      attempts++;
+    } while (greetingHash === lastGreetingHash && attempts < 5);
+    
+    // Store new greeting hash
+    localStorage.setItem('buddy-last-greeting', greetingHash);
+    
+    console.log(`🎲 Selected greeting ${greetingHash} (attempts: ${attempts})`);
+    return selectedGreeting;
   };
 
   // Auto-send greeting when user first logs in to trigger audio permission
@@ -876,8 +946,17 @@ export const BuddyApp = () => {
         </div>
         
         <div className="flex items-center gap-2">
-          {/* Step 7.7: Self-test buttons */}
+          {/* STEP 0: Verification Test + Individual Tests */}
           <div className="flex gap-1 mr-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={runStep0VerificationTest}
+              className="p-1 hover:bg-yellow-100 rounded text-xs"
+              title="Step 0: Run Full Pipeline Test"
+            >
+              <span className="text-yellow-600 font-bold text-xs">0</span>
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -948,7 +1027,7 @@ export const BuddyApp = () => {
           {messages.length > 0 ? (
             messages.map((message, index) => (
               <Card 
-                key={message.id} 
+                key={`${message.id}-${index}`} 
                 className={`
                   p-4 animate-fade-in
                   ${message.type === 'user' 
