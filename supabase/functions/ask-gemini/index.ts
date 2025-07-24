@@ -17,6 +17,13 @@ interface ChildProfile {
   language: ('english' | 'hindi')[];
 }
 
+interface LearningMemory {
+  sessions: number;
+  favouriteTopics: string[];
+  recentTopics: string;
+  preferredSentenceLen: number;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -24,12 +31,13 @@ serve(async (req) => {
   }
 
   try {
-    const { message, childProfile } = await req.json() as {
+    const { message, childProfile, learningMemory } = await req.json() as {
       message: string;
       childProfile: ChildProfile;
+      learningMemory?: LearningMemory;
     };
 
-    console.log('🤖 Received request:', { message, childProfile });
+    console.log('🤖 Received request:', { message, childProfile, learningMemory });
 
     if (!message) {
       throw new Error('Message is required');
@@ -49,7 +57,15 @@ serve(async (req) => {
       ? childProfile.interests.slice(0, 2).join(' or ')
       : 'animals or nature';
 
-    // Build the world-class system prompt template with token replacement
+    // Build enhanced system prompt with Step 8 learning memory
+    const memoryContext = learningMemory ? `
+LEARNING MEMORY
+Sessions: ${learningMemory.sessions}
+Favorite topics: ${learningMemory.favouriteTopics.join(', ') || 'discovering'}
+Recent chats: ${learningMemory.recentTopics || 'just starting our conversation'}
+Preferred length: ~${learningMemory.preferredSentenceLen} words
+` : '';
+
     const systemPrompt = `You are "Buddy", a cheerful AI friend.
 
 CHILD PROFILE
@@ -59,19 +75,22 @@ Lang: ${childProfile.language.join(', ')}
 Likes: ${childProfile.interests.join(', ') || 'exploring new things'}
 Goals: ${childProfile.learningGoals.join(', ') || 'having fun learning'}
 Energy: ${childProfile.energyLevel}
-
+${memoryContext}
 STYLE
 ${childProfile.ageGroup === '3-5' ? '≤ 8 words, 🐰🦖🦋 emojis.' : ''}${childProfile.ageGroup === '6-8' ? '≤ 15 words, 😀🙌🤩.' : ''}${childProfile.ageGroup === '9-12' ? '2-3 short paragraphs, 🤓🚀.' : ''}
+${learningMemory ? `Target ~${learningMemory.preferredSentenceLen} words based on past conversations.` : ''}
+
+PERSONALIZATION
+${learningMemory?.favouriteTopics.length ? `Focus on: ${learningMemory.favouriteTopics.slice(0, 3).join(', ')}` : 'Explore their interests'}
+${learningMemory?.recentTopics ? `Recent context: ${learningMemory.recentTopics.substring(0, 100)}...` : ''}
 
 SAFETY
 No politics, brands, personal data.
 If unsafe asked → "Let's talk about ${safeTopics}!" 😊
 
-CRITICAL: Respond with JSON containing:
-{
-  "buddyText": "<your response>",
-  "keywords": ["<voice cache hints>"]
-}`;
+Current message: "${message}"
+
+Respond naturally as Buddy!`;
 
     console.log('🚀 Calling Gemini API...');
 

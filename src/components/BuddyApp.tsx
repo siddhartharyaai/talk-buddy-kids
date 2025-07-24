@@ -16,6 +16,18 @@ export interface ChatMessage {
   isProcessing?: boolean;
 }
 
+export interface LearningMemory {
+  sessions: number;
+  totalMinutes: number;
+  streakDays: number;
+  favouriteTopics: Record<string, number>;   // "dinosaurs": 7 mentions
+  quizCorrect: number;
+  quizAsked: number;
+  preferredSentenceLen?: number;            // rolling average
+  lastActive: number;
+  transcripts: Array<{content: string, timestamp: number, type: 'user' | 'buddy'}>;
+}
+
 export const BuddyApp = () => {
   console.log('🔍 BuddyApp component starting to render...');
 
@@ -435,13 +447,106 @@ export const BuddyApp = () => {
     }
   }, [childProfile]);
 
-  // Get AI response from Buddy - Fixed with useCallback
+  // STEP 8: PERSONALISATION LOOP - Learning Memory Functions
+  const loadLearningMemory = useCallback((childName: string): LearningMemory => {
+    const key = `learning_memory_${childName}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+    return {
+      sessions: 0,
+      totalMinutes: 0,
+      streakDays: 0,
+      favouriteTopics: {},
+      quizCorrect: 0,
+      quizAsked: 0,
+      preferredSentenceLen: 15,
+      lastActive: Date.now(),
+      transcripts: []
+    };
+  }, []);
+
+  const updateLearningMemory = useCallback((childName: string, update: Partial<LearningMemory>) => {
+    const key = `learning_memory_${childName}`;
+    const current = loadLearningMemory(childName);
+    const updated = { ...current, ...update, lastActive: Date.now() };
+    localStorage.setItem(key, JSON.stringify(updated));
+    console.log('💾 Step 8: Learning memory updated:', updated);
+    return updated;
+  }, [loadLearningMemory]);
+
+  const addTranscript = useCallback((childName: string, content: string, type: 'user' | 'buddy') => {
+    const memory = loadLearningMemory(childName);
+    const newTranscript = { content, timestamp: Date.now(), type };
+    const updatedTranscripts = [newTranscript, ...memory.transcripts].slice(0, 20); // Keep last 20
+    
+    updateLearningMemory(childName, { transcripts: updatedTranscripts });
+    
+    // Step 8: Update interests when child repeats topic ≥ 3 times
+    if (type === 'user') {
+      const topics = extractTopics(content);
+      const updatedTopics = { ...memory.favouriteTopics };
+      
+      topics.forEach(topic => {
+        updatedTopics[topic] = (updatedTopics[topic] || 0) + 1;
+        console.log(`📈 Step 8: Topic "${topic}" mentioned ${updatedTopics[topic]} times`);
+        
+        // Update interests in profile if mentioned ≥ 3 times
+        if (updatedTopics[topic] >= 3 && childProfile) {
+          const topicCapitalized = topic.charAt(0).toUpperCase() + topic.slice(1);
+          if (!childProfile.interests.includes(topicCapitalized)) {
+            const updatedProfile = {
+              ...childProfile,
+              interests: [...childProfile.interests, topicCapitalized]
+            };
+            setChildProfile(updatedProfile);
+            
+            toast({
+              title: "🎯 New Interest Discovered!",
+              description: `Added "${topicCapitalized}" to ${childProfile.name}'s interests!`,
+            });
+            
+            console.log(`✅ Step 8: Added "${topicCapitalized}" to interests after 3+ mentions`);
+          }
+        }
+      });
+      
+      updateLearningMemory(childName, { favouriteTopics: updatedTopics });
+    }
+  }, [loadLearningMemory, updateLearningMemory, childProfile]);
+
+  const extractTopics = (text: string): string[] => {
+    const topics = [];
+    const lowercaseText = text.toLowerCase();
+    
+    // Common topic keywords (Step 8 requirement)
+    const topicKeywords = [
+      'dinosaur', 'dinosaurs', 'space', 'planets', 'animals', 'cats', 'dogs', 'fish',
+      'science', 'math', 'reading', 'books', 'stories', 'music', 'art', 'drawing',
+      'games', 'sports', 'nature', 'trees', 'flowers', 'cars', 'trucks', 'robots',
+      'food', 'cooking', 'family', 'friends', 'school', 'colors', 'numbers'
+    ];
+    
+    topicKeywords.forEach(keyword => {
+      if (lowercaseText.includes(keyword)) {
+        topics.push(keyword);
+      }
+    });
+    
+    return topics;
+  };
+
+  // Get AI response from Buddy - Enhanced with Step 8 personalisation
   const getBuddyResponse = useCallback(async (userMessage: string) => {
     if (!childProfile) {
       console.error('❌ No child profile available for AI response');
       return;
     }
 
+    // Step 8: Add transcript to learning memory
+    addTranscript(childProfile.name, userMessage, 'user');
+    
     // Add Buddy's thinking message
     const buddyMessageId = Date.now().toString();
     const thinkingMessage: ChatMessage = {
@@ -457,11 +562,30 @@ export const BuddyApp = () => {
     try {
       console.log('🤖 Getting AI response for:', userMessage);
       
-      // Call ask-gemini edge function
+      // Step 8: Load learning memory and create summary for Gemini
+      const learningMemory = loadLearningMemory(childProfile.name);
+      const memoryContext = {
+        sessions: learningMemory.sessions,
+        favouriteTopics: Object.entries(learningMemory.favouriteTopics)
+          .sort(([,a], [,b]) => b - a)
+          .slice(0, 5)
+          .map(([topic, count]) => `${topic} (${count}x)`),
+        recentTopics: learningMemory.transcripts
+          .slice(0, 10)
+          .filter(t => t.type === 'user')
+          .map(t => t.content)
+          .join('; '),
+        preferredSentenceLen: learningMemory.preferredSentenceLen || 15
+      };
+      
+      console.log('🧠 Step 8: Memory context for Gemini:', memoryContext);
+      
+      // Call ask-gemini edge function with enhanced context
       const { data, error } = await supabase.functions.invoke('ask-gemini', {
         body: { 
           message: userMessage,
-          childProfile: childProfile
+          childProfile: childProfile,
+          learningMemory: memoryContext  // Step 8: Inject learning context
         }
       });
       
@@ -473,6 +597,20 @@ export const BuddyApp = () => {
       console.log('🤖 AI response:', data);
       
       const aiResponse = data.response || "I'm sorry, I'm having trouble thinking right now. Can you ask me something else? 😊";
+      
+      // Step 8: Track preferred sentence length with exponential moving average
+      const responseLength = aiResponse.split(' ').length;
+      const alpha = 0.1; // EMA smoothing factor
+      const currentPref = learningMemory.preferredSentenceLen || 15;
+      const newPref = Math.round(alpha * responseLength + (1 - alpha) * currentPref);
+      
+      updateLearningMemory(childProfile.name, { 
+        preferredSentenceLen: newPref,
+        sessions: learningMemory.sessions + 1
+      });
+      
+      // Step 8: Add Buddy's response to transcript memory
+      addTranscript(childProfile.name, aiResponse, 'buddy');
       
       // Update the message with AI response
       setMessages(prev => prev.map(msg => 
@@ -512,7 +650,7 @@ export const BuddyApp = () => {
         variant: "destructive"
       });
     }
-  }, [childProfile, playVoice]);
+  }, [childProfile, playVoice, addTranscript, loadLearningMemory, updateLearningMemory]);
 
   // Auto-send greeting when user first logs in to trigger audio permission - Fixed with useCallback
   const sendAutoGreeting = useCallback(async () => {
@@ -642,10 +780,59 @@ export const BuddyApp = () => {
     // Stop recording logic would go here
   };
 
-  // Test functions - Fixed implementation
+  // Test functions - Fixed implementation  
   const testSTT = () => console.log('STT test');
   const testLLM = () => console.log('LLM test'); 
   const testTTS = () => console.log('TTS test');
+  
+  // Step 8 Self-test: mention "dinosaurs" three times to verify interest addition
+  const testStep8Personalisation = async () => {
+    if (!childProfile) {
+      toast({
+        title: "❌ Step 8 Test Failed",
+        description: "No child profile found. Please set up profile first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('🧪 Step 8: Starting personalisation test...');
+    toast({
+      title: "🧪 Step 8: Personalisation Test",
+      description: "Testing interest detection with 'dinosaurs'...",
+    });
+
+    // Simulate mentioning "dinosaurs" 3 times
+    for (let i = 1; i <= 3; i++) {
+      const testMessage = `I love dinosaurs! They are so cool! ${i}/3`;
+      console.log(`🦖 Step 8 Test ${i}/3: ${testMessage}`);
+      
+      // Add to learning memory
+      addTranscript(childProfile.name, testMessage, 'user');
+      
+      // Small delay between mentions
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    // Check if "Dinosaurs" was added to interests
+    setTimeout(() => {
+      if (childProfile.interests.includes('Dinosaurs')) {
+        console.log('✅ Step 8 Test: SUCCESS - "Dinosaurs" added to interests!');
+        toast({
+          title: "✅ Step 8 Test Complete",
+          description: 'Interest detection working! "Dinosaurs" added after 3 mentions.',
+        });
+      } else {
+        console.log('❌ Step 8 Test: FAILED - "Dinosaurs" not added to interests');
+        toast({
+          title: "❌ Step 8 Test Failed",
+          description: 'Interest detection not working as expected.',
+          variant: "destructive"
+        });
+      }
+    }, 2000);
+  };
+  
   const runStep0VerificationTest = () => {
     console.log('🧪 Step 0: Running verification test...');
     toast({
@@ -722,6 +909,15 @@ export const BuddyApp = () => {
               title="Test Text-to-Speech"
             >
               <Volume2 className="w-4 h-4 text-green-600" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={testStep8Personalisation}
+              className="p-1 hover:bg-indigo-100 rounded text-xs"
+              title="Step 8: Test Personalisation Loop"
+            >
+              <span className="text-indigo-600 font-bold text-xs">8</span>
             </Button>
           </div>
           
