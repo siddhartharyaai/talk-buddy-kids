@@ -404,24 +404,17 @@ export const BuddyApp = () => {
           if (playError.name === 'NotAllowedError') {
             setIsSpeaking(false);
             
-            toast({
-              title: "🔊 Click to hear Buddy!",
-              description: "Browser needs your permission to play audio. Click anywhere!",
-              variant: "default"
-            });
+            // FIXED: Remove intrusive toast, handle audio permission silently
+            console.log('🔇 Audio autoplay blocked - will enable on next user interaction');
             
-            // User interaction handler
+            // Enable audio on next user interaction (silently)
             const enableAudio = async () => {
               try {
                 setIsSpeaking(true);
                 await audio.play();
                 console.log('✅ Audio playing after user interaction!');
-                
-                toast({
-                  title: "🎵 Buddy is speaking!",
-                  description: "Audio enabled successfully!",
-                });
-                
+                document.removeEventListener('click', enableAudio);
+                document.removeEventListener('touchstart', enableAudio);
               } catch (retryError) {
                 console.error('❌ Still failed after user interaction:', retryError);
                 setIsSpeaking(false);
@@ -430,8 +423,9 @@ export const BuddyApp = () => {
               }
             };
             
-            // Single interaction listener
+            // Listen for ANY user interaction to enable audio
             document.addEventListener('click', enableAudio, { once: true });
+            document.addEventListener('touchstart', enableAudio, { once: true });
             
           } else {
             setIsSpeaking(false);
