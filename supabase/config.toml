@@ -51,5 +51,11 @@ verify_jwt = false
 [functions.import-rhyme]
 verify_jwt = false
 
+[functions.import-audiobook]
+verify_jwt = false
+
+[functions.import-storynory]
+verify_jwt = false
+
 [functions.bulk-import]
 verify_jwt = false
