@@ -854,6 +854,59 @@ export const BuddyApp = () => {
     }
   };
 
+  // 4. ADAPTIVE REPLY ENGINE - Self Tests
+  const testAdaptiveReplies = async () => {
+    if (!childProfile) {
+      toast({
+        title: "❌ Adaptive Test Failed",
+        description: "No child profile found. Please set up profile first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('🧪 ADAPTIVE REPLY ENGINE - Starting Self Tests...');
+    toast({
+      title: "🧪 Testing Adaptive Replies",
+      description: "Running 4 intent classification tests...",
+    });
+
+    const tests = [
+      { message: "What is 2 + 2?", expectedIntent: "question", expectedLength: "≤ 40 words" },
+      { message: "Tell me a short bedtime story.", expectedIntent: "story", expectedLength: "≥ 250 words" },
+      { message: "Sing Twinkle Twinkle", expectedIntent: "song", expectedLength: "8-12 lines" },
+      { message: "Hi", expectedIntent: "chat", expectedLength: "1-2 sentences" }
+    ];
+
+    for (let i = 0; i < tests.length; i++) {
+      const test = tests[i];
+      console.log(`\n🔬 Test ${i + 1}/4: "${test.message}"`);
+      console.log(`Expected: ${test.expectedIntent} | ${test.expectedLength}`);
+      
+      try {
+        // Send test message through the pipeline
+        await getBuddyResponse(test.message);
+        
+        // Wait between tests
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (error) {
+        console.error(`❌ Test ${i + 1} failed:`, error);
+      }
+    }
+
+    console.log('\n📊 ADAPTIVE REPLY ENGINE TESTS COMPLETE');
+    console.log('Check responses above to verify length compliance:');
+    console.log('• Question: Should be concise (≤ 40 words)');
+    console.log('• Story: Should be detailed (≥ 250 words)');  
+    console.log('• Song: Should be 8-12 lines');
+    console.log('• Chat: Should be 1-2 sentences');
+    
+    toast({
+      title: "✅ Adaptive Tests Complete",
+      description: "Check console for detailed results and response analysis.",
+    });
+  };
+
   // Test functions - Fixed implementation  
   const testSTT = () => console.log('STT test');
   const testLLM = () => console.log('LLM test'); 
@@ -1179,6 +1232,15 @@ export const BuddyApp = () => {
               title="Step 8: Test Personalisation Loop"
             >
               <span className="text-indigo-600 font-bold text-xs">8</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={testAdaptiveReplies}
+              className="p-1 hover:bg-purple-100 rounded text-xs"
+              title="Test Adaptive Reply Engine"
+            >
+              <span className="text-purple-600 font-bold text-xs">AR</span>
             </Button>
             <Button
               variant="ghost"

@@ -52,6 +52,18 @@ serve(async (req) => {
       throw new Error('GEMINI_API_KEY not configured');
     }
 
+    // 1. ADAPTIVE REPLY ENGINE - Intent Classifier
+    function classifyIntent(text: string) {
+      if (/story|कहानी|kahani|tale|once upon/i.test(text)) return "story";
+      if (/song|गाना|कविता|rhyme|sing|music/i.test(text)) return "song";
+      if (/why|how|what|क्यों|क्या|explain|tell me about|what is/i.test(text)) return "question";
+      return "chat";
+    }
+
+    // Classify user intent
+    const intent = classifyIntent(message);
+    console.log(`🎯 Intent classified: "${intent}" for message: "${message}"`);
+
     // Generate safe fallback topics based on interests
     const safeTopics = childProfile.interests.length > 0 
       ? childProfile.interests.slice(0, 2).join(' or ')
@@ -82,12 +94,16 @@ CONVERSATION RULES
 - If sessions > 0, this is a continuing conversation - NO greetings needed
 - Focus on the content, not repetitive introductions
 
-STYLE & LENGTH
-${childProfile.ageGroup === '3-5' ? 'Simple language, 2-4 sentences. Tell complete stories with 🐰🦖🦋 emojis. Be engaging and educational!' : ''}${childProfile.ageGroup === '6-8' ? 'Clear explanations, 1-2 paragraphs. Include details and examples with 😀🙌🤩 emojis. Make learning fun!' : ''}${childProfile.ageGroup === '9-12' ? 'Detailed responses, 2-3 paragraphs. Encourage critical thinking with 🤓🚀 emojis. Deep dive into topics!' : ''}
-- ALWAYS provide complete, helpful responses
-- If asked for a story, tell the FULL story with beginning, middle, and end
-- If explaining concepts, give examples and details
-- Don't stop mid-sentence due to length limits
+INTENT: ${intent}
+LENGTH GUIDE
+• "question" → concise answer ≤ 40 words.
+• "story" → 250-350 words with beginning–middle–end.
+• "song" → 8-12 lines, rhyming if possible.
+• "chat" → 1-2 friendly sentences.
+Follow the guide exactly.
+
+STYLE & EMOJIS
+${childProfile.ageGroup === '3-5' ? 'Simple language with 🐰🦖🦋 emojis.' : ''}${childProfile.ageGroup === '6-8' ? 'Clear explanations with 😀🙌🤩 emojis.' : ''}${childProfile.ageGroup === '9-12' ? 'Detailed responses with 🤓🚀 emojis.' : ''}
 
 PERSONALIZATION
 ${learningMemory?.favouriteTopics.length ? `Focus on: ${learningMemory.favouriteTopics.slice(0, 3).join(', ')}` : 'Explore their interests'}
@@ -122,31 +138,40 @@ Respond naturally as Buddy!`;
               ]
             }
           ],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1500, // Increased from 500 to allow detailed stories and explanations
-        },
-        safetySettings: [
-          {
-            category: "HARM_CATEGORY_HARASSMENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: (() => {
+              // 3. Dynamic token limits based on intent
+              const maxTokens = intent === "story" ? 1500
+                              : intent === "song" ? 800
+                              : intent === "question" ? 300
+                              : 300; // chat
+              
+              console.log(`🔢 Setting maxTokens to ${maxTokens} for intent: ${intent}`);
+              return maxTokens;
+            })(),
           },
-          {
-            category: "HARM_CATEGORY_HATE_SPEECH",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          }
-        ]
-      }),
+          safetySettings: [
+            {
+              category: "HARM_CATEGORY_HARASSMENT",
+              threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+              category: "HARM_CATEGORY_HATE_SPEECH",
+              threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+              category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+              threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+              category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+              threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            }
+          ]
+        }),
     });
 
     if (!response.ok) {
