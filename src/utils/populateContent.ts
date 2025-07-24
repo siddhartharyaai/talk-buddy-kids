@@ -7,7 +7,7 @@ export const populateContentLibrary = async () => {
     // Call bulk-import function
     const { data, error } = await supabase.functions.invoke('bulk-import', {
       body: { 
-        contentTypes: ['stories', 'sfx', 'rhymes'],
+        contentTypes: ['stories', 'rhymes'],
         languages: ['en', 'hi'],
         maxItems: 5,  // Start with 5 items per type
         dryRun: false 

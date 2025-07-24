@@ -122,18 +122,6 @@ export const uploadInitialContent = async () => {
   }
 };
 
-// Helper to get SFX content (for now returns placeholder URLs)
-export const getSfxHelper = (name: string): string => {
-  // Placeholder SFX URLs - in production these would be actual files
-  const sfxMap: Record<string, string> = {
-    'tiger_roar': 'https://www.soundjay.com/misc/sounds/tiger-roar.mp3',
-    'dog_bark': 'https://www.soundjay.com/misc/sounds/dog-bark.mp3', 
-    'cat_meow': 'https://www.soundjay.com/misc/sounds/cat-meow.mp3',
-    'cow_moo': 'https://www.soundjay.com/misc/sounds/cow-moo.mp3'
-  };
-  
-  return sfxMap[name] || sfxMap['tiger_roar'];
-};
 
 // Test content switchboard functionality
 export const testContentSwitchboard = async () => {
@@ -141,8 +129,7 @@ export const testContentSwitchboard = async () => {
   
   const tests = [
     { type: 'story', lang: 'en', age: 6, topic: 'animals' },
-    { type: 'rhyme', lang: 'hi', age: 4, topic: 'any' },
-    { type: 'sfx', lang: 'en', age: 5, topic: 'animals' }
+    { type: 'rhyme', lang: 'hi', age: 4, topic: 'any' }
   ];
   
   for (const test of tests) {

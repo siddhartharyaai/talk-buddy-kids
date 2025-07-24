@@ -24,8 +24,6 @@ import { populateContentLibrary, verifyContent } from '../utils/populateContent'
 import { uploadTestStory } from '../utils/uploadTestStory';
 import { testGetContent } from '../utils/testGetContent';
 import { testStorageAccess } from '../utils/testStorageAccess';
-import { uploadTestSfx } from '../utils/uploadTestSfx';
-import { testSfxAccess } from '../utils/testSfxAccess';
 import confetti from 'canvas-confetti';
 
 export interface ChatMessage {
@@ -706,7 +704,7 @@ export const BuddyApp = () => {
   };
 
   // Step 4-F: Handle content requests with switchboard
-  const handleContentRequest = async (intent: { type: 'story' | 'rhyme' | 'sfx'; topic: string; action?: string }, messageId: string) => {
+  const handleContentRequest = async (intent: { type: 'story' | 'rhyme'; topic: string; action?: string }, messageId: string) => {
     try {
       console.log('📚 Fetching content:', intent);
       
@@ -731,8 +729,6 @@ export const BuddyApp = () => {
         await handleStoryContent(content, messageId);
       } else if (intent.type === 'rhyme') {
         await handleRhymeContent(content, messageId);
-      } else if (intent.type === 'sfx') {
-        await handleSfxContent(content, messageId, intent.action);
       }
       
       // Update learning memory with topic preference
@@ -792,35 +788,6 @@ export const BuddyApp = () => {
     await playVoice(rhymeText);
   };
 
-  // Handle sound effects with voice pitch shift simulation
-  const handleSfxContent = async (sfx: any, messageId: string, action?: string) => {
-    const responseText = `Listen to this! *${sfx.name}* Now let me try to make that sound too!`;
-    
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId
-        ? { ...msg, content: responseText, isProcessing: false }
-        : msg
-    ));
-    
-    // Play the SFX first if available
-    if (sfx.url) {
-      try {
-        const audio = new Audio(sfx.url);
-        await audio.play();
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for SFX to finish
-      } catch (error) {
-        console.error('❌ SFX playback failed:', error);
-      }
-    }
-    
-    // Then Buddy tries to imitate with voice
-    const imitationText = action === 'tiger_roar' ? 'ROAAAAR!' :
-                         action === 'dog_bark' ? 'Woof woof!' :
-                         action === 'cat_meow' ? 'Meow meow!' :
-                         'Here\'s my version of that sound!';
-    
-    await playVoice(imitationText);
-  };
 
   // Get AI response from Buddy - Enhanced with content switchboard (Step 4-F)
   const getBuddyResponse = useCallback(async (userMessage: string) => {
@@ -852,8 +819,8 @@ export const BuddyApp = () => {
       console.log('🤖 Getting AI response for:', userMessage);
       
       // Step 4-F: Handle content requests
-      if (messageIntent.type) {
-        await handleContentRequest(messageIntent, buddyMessageId);
+      if (messageIntent.type && (messageIntent.type === 'story' || messageIntent.type === 'rhyme')) {
+        await handleContentRequest(messageIntent as { type: 'story' | 'rhyme'; topic: string; action?: string }, buddyMessageId);
         return;
       }
       
@@ -1752,49 +1719,6 @@ export const BuddyApp = () => {
             📚
           </Button>
           
-          {/* Upload test SFX button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={async () => {
-              try {
-                toast({ title: "Uploading test SFX...", description: "Creating tiger roar sound" });
-                await uploadTestSfx();
-                toast({ title: "Test SFX uploaded!", description: "Now try 'Roar like a tiger'" });
-              } catch (error) {
-                console.error('❌ SFX Upload failed:', error);
-                toast({ title: "SFX Upload failed", description: error?.message || "Unknown error", variant: "destructive" });
-              }
-            }}
-            className="p-2 hover:bg-gray-100 rounded-full"
-            title="Upload Test SFX"
-          >
-            🔊
-          </Button>
-          
-          {/* Test SFX access button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={async () => {
-              try {
-                toast({ title: "Testing SFX access...", description: "Checking storage and download" });
-                const result = await testSfxAccess();
-                if (result.success) {
-                  toast({ title: "✅ SFX test passed!", description: `Found: ${result.sfx.name}` });
-                } else {
-                  toast({ title: "❌ SFX test failed", description: result.error, variant: "destructive" });
-                }
-              } catch (error) {
-                console.error('❌ SFX test error:', error);
-                toast({ title: "SFX test error", description: error?.message || "Unknown error", variant: "destructive" });
-              }
-            }}
-            className="p-2 hover:bg-gray-100 rounded-full"
-            title="Test SFX Access"
-          >
-            🧪
-          </Button>
           
           {/* Test get-content function */}
           <Button

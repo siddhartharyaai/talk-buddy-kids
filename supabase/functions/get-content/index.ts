@@ -24,8 +24,8 @@ serve(async (req) => {
   try {
     const { type, language = 'en', age = 6, topic = 'animals' } = await req.json();
     
-    if (!type || !['story', 'rhyme', 'sfx'].includes(type)) {
-      throw new Error('Invalid content type. Must be: story, rhyme, or sfx');
+    if (!type || !['story', 'rhyme'].includes(type)) {
+      throw new Error('Invalid content type. Must be: story or rhyme');
     }
 
     console.log(`Fetching ${type} content: lang=${language}, age=${age}, topic=${topic}`);
@@ -53,9 +53,6 @@ serve(async (req) => {
         break;
       case 'rhyme':
         content = await getRhymeContent(language, age, topic);
-        break;
-      case 'sfx':
-        content = await getSfxContent(topic);
         break;
       default:
         throw new Error(`Unsupported content type: ${type}`);
@@ -200,56 +197,6 @@ async function getRhymeContent(language: string, age: number, topic: string) {
   }
 }
 
-async function getSfxContent(topic: string) {
-  const folderPath = 'sfx/';
-  
-  console.log(`🔍 getSfxContent called with topic: "${topic}"`);
-  
-  try {
-    console.log(`📁 Listing SFX files in folder: ${folderPath}`);
-    const { data: files, error } = await supabase.storage
-      .from('content')
-      .list(folderPath);
-
-    console.log(`📄 Found ${files?.length || 0} files:`, files?.map(f => f.name) || []);
-    
-    if (error || !files || files.length === 0) {
-      console.error('❌ No SFX files found or error:', error);
-      throw new Error('No sound effects available');
-    }
-
-    // Look for the specific tiger roar file first as a test
-    const tigerFile = files.find(f => f.name === 'tiger-roar.json');
-    if (tigerFile) {
-      console.log(`🐯 Found tiger-roar.json file, downloading...`);
-      try {
-        const { data } = await supabase.storage
-          .from('content')
-          .download(`${folderPath}tiger-roar.json`);
-        
-        if (data) {
-          const text = await data.text();
-          const sfxData = JSON.parse(text);
-          console.log(`✅ Tiger SFX loaded successfully:`, sfxData);
-          
-          return {
-            type: 'sfx',
-            ...sfxData
-          };
-        }
-      } catch (err) {
-        console.error(`❌ Error downloading tiger SFX:`, err);
-      }
-    }
-
-    // If no tiger file or error, throw
-    throw new Error(`No sound effects found for topic: ${topic}`);
-
-  } catch (error) {
-    console.error('❌ Error in getSfxContent:', error);
-    throw error;
-  }
-}
 
 function determineAgeBand(age: number): string {
   if (age <= 5) return '3-5';
