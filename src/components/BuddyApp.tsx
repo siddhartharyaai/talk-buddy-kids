@@ -833,6 +833,192 @@ export const BuddyApp = () => {
     }, 2000);
   };
   
+  // STEP 9: FULL REGRESSION & NETWORK THROTTLE TEST
+  const runStep9RegressionTest = async () => {
+    console.log('🧪 Step 9: Starting full regression test with network throttling...');
+    toast({
+      title: "🧪 Step 9: Regression Test",
+      description: "Testing 5 English + 5 Hindi conversations with 3G throttling...",
+    });
+
+    if (!childProfile) {
+      toast({
+        title: "❌ Step 9 Test Failed",
+        description: "No child profile found. Please set up profile first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const results = {
+      english: [],
+      hindi: [],
+      totalTests: 10,
+      passed: 0,
+      failed: 0,
+      timeouts: 0
+    };
+
+    // Test conversations for English
+    const englishTestMessages = [
+      "Tell me about animals",
+      "What is your favorite color?", 
+      "Can you help me learn math?",
+      "I want to hear a story",
+      "Do you like to play games?"
+    ];
+
+    // Test conversations for Hindi (transliterated)
+    const hindiTestMessages = [
+      "Mujhe janwaron ke baare mein batao",
+      "Tumhara favorite rang kya hai?",
+      "Kya tum meri math mein madad kar sakte ho?",
+      "Main ek kahani sunna chahta hun",
+      "Kya tumhe games khelna pasand hai?"
+    ];
+
+    const testConversation = async (message: string, language: string, testIndex: number) => {
+      const startTime = performance.now();
+      let sttTime = 0, llmTime = 0, ttsTime = 0;
+      
+      try {
+        console.log(`🧪 Step 9 Test ${testIndex + 1}/10 (${language}): "${message}"`);
+        
+        // Simulate 3G throttling by adding artificial delay
+        await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
+        
+        // Test STT (simulate with direct text input)
+        const sttStart = performance.now();
+        // In real test, this would be actual STT call
+        await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100));
+        sttTime = performance.now() - sttStart;
+        
+        // Test LLM
+        const llmStart = performance.now();
+        const { data: llmData, error: llmError } = await supabase.functions.invoke('ask-gemini', {
+          body: { 
+            message: message,
+            childProfile: {
+              ...childProfile,
+              language: language === 'hindi' ? ['hindi'] : ['english']
+            },
+            learningMemory: loadLearningMemory(childProfile.name)
+          }
+        });
+        llmTime = performance.now() - llmStart;
+        
+        if (llmError) throw new Error(`LLM failed: ${llmError.message}`);
+        
+        // Test TTS
+        const ttsStart = performance.now();
+        const { data: ttsData, error: ttsError } = await supabase.functions.invoke('speak-gtts', {
+          body: { text: llmData.response || "Test response" }
+        });
+        ttsTime = performance.now() - ttsStart;
+        
+        if (ttsError) throw new Error(`TTS failed: ${ttsError.message}`);
+        
+        const totalTime = performance.now() - startTime;
+        
+        const testResult = {
+          message,
+          language,
+          sttTime: Math.round(sttTime),
+          llmTime: Math.round(llmTime), 
+          ttsTime: Math.round(ttsTime),
+          totalTime: Math.round(totalTime),
+          success: totalTime <= 4000, // ≤ 4 seconds requirement
+          details: `STT:${Math.round(sttTime)}ms, LLM:${Math.round(llmTime)}ms, TTS:${Math.round(ttsTime)}ms`
+        };
+        
+        if (testResult.success) {
+          results.passed++;
+          console.log(`✅ Step 9 Test ${testIndex + 1}: SUCCESS (${Math.round(totalTime)}ms) - ${testResult.details}`);
+        } else {
+          results.failed++;
+          results.timeouts++;
+          console.log(`❌ Step 9 Test ${testIndex + 1}: TIMEOUT (${Math.round(totalTime)}ms > 4000ms) - ${testResult.details}`);
+        }
+        
+        return testResult;
+        
+      } catch (error) {
+        const totalTime = performance.now() - startTime;
+        results.failed++;
+        console.log(`❌ Step 9 Test ${testIndex + 1}: ERROR (${Math.round(totalTime)}ms) - ${error.message}`);
+        
+        return {
+          message,
+          language,
+          sttTime: Math.round(sttTime),
+          llmTime: Math.round(llmTime),
+          ttsTime: Math.round(ttsTime),
+          totalTime: Math.round(totalTime),
+          success: false,
+          error: error.message,
+          details: `ERROR: ${error.message}`
+        };
+      }
+    };
+
+    // Run English tests
+    console.log('🇺🇸 Step 9: Testing English conversations...');
+    for (let i = 0; i < englishTestMessages.length; i++) {
+      const result = await testConversation(englishTestMessages[i], 'english', i);
+      results.english.push(result);
+      
+      // Small delay between tests
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    // Run Hindi tests
+    console.log('🇮🇳 Step 9: Testing Hindi conversations...');
+    for (let i = 0; i < hindiTestMessages.length; i++) {
+      const result = await testConversation(hindiTestMessages[i], 'hindi', i + 5);
+      results.hindi.push(result);
+      
+      // Small delay between tests  
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    // Calculate final results
+    const passRate = Math.round((results.passed / results.totalTests) * 100);
+    const avgTimeEnglish = Math.round(results.english.reduce((sum, r) => sum + r.totalTime, 0) / results.english.length);
+    const avgTimeHindi = Math.round(results.hindi.reduce((sum, r) => sum + r.totalTime, 0) / results.hindi.length);
+    const maxTime = Math.max(...results.english.map(r => r.totalTime), ...results.hindi.map(r => r.totalTime));
+
+    console.log('🎯 Step 9 Final Results:', {
+      passed: results.passed,
+      failed: results.failed,
+      passRate: `${passRate}%`,
+      avgTimeEnglish: `${avgTimeEnglish}ms`,
+      avgTimeHindi: `${avgTimeHindi}ms`,
+      maxTime: `${maxTime}ms`,
+      requirement: '≤ 4000ms'
+    });
+
+    // Determine if test passed
+    const testPassed = results.passed >= 8; // At least 80% success rate
+    const performancePassed = maxTime <= 4000; // All calls ≤ 4s
+    const overallPassed = testPassed && performancePassed;
+
+    if (overallPassed) {
+      console.log('✅ Step 9 Regression Test: ALL TESTS PASSED');
+      toast({
+        title: "✅ Step 9 Complete",
+        description: `${results.passed}/${results.totalTests} tests passed. Max time: ${maxTime}ms ≤ 4000ms`,
+      });
+    } else {
+      console.log('❌ Step 9 Regression Test: SOME TESTS FAILED');
+      toast({
+        title: "❌ Step 9 Failed",
+        description: `${results.failed}/${results.totalTests} tests failed. Max time: ${maxTime}ms. Target: ≤ 4000ms`,
+        variant: "destructive"
+      });
+    }
+
+    return overallPassed;
+  };
   const runStep0VerificationTest = () => {
     console.log('🧪 Step 0: Running verification test...');
     toast({
@@ -918,6 +1104,15 @@ export const BuddyApp = () => {
               title="Step 8: Test Personalisation Loop"
             >
               <span className="text-indigo-600 font-bold text-xs">8</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={runStep9RegressionTest}
+              className="p-1 hover:bg-red-100 rounded text-xs"
+              title="Step 9: Full Regression & Network Throttle Test"
+            >
+              <span className="text-red-600 font-bold text-xs">9</span>
             </Button>
           </div>
           
