@@ -24,6 +24,7 @@ import { populateContentLibrary, verifyContent } from '../utils/populateContent'
 import { uploadTestStory } from '../utils/uploadTestStory';
 import { testGetContent } from '../utils/testGetContent';
 import { testStorageAccess } from '../utils/testStorageAccess';
+import { uploadTestSfx } from '../utils/uploadTestSfx';
 import confetti from 'canvas-confetti';
 
 export interface ChatMessage {
@@ -1748,6 +1749,26 @@ export const BuddyApp = () => {
             title="Upload Test Story"
           >
             📚
+          </Button>
+          
+          {/* Upload test SFX button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              try {
+                toast({ title: "Uploading test SFX...", description: "Creating tiger roar sound" });
+                await uploadTestSfx();
+                toast({ title: "Test SFX uploaded!", description: "Now try 'Roar like a tiger'" });
+              } catch (error) {
+                console.error('❌ SFX Upload failed:', error);
+                toast({ title: "SFX Upload failed", description: error?.message || "Unknown error", variant: "destructive" });
+              }
+            }}
+            className="p-2 hover:bg-gray-100 rounded-full"
+            title="Upload Test SFX"
+          >
+            🔊
           </Button>
           
           {/* Test get-content function */}

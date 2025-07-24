@@ -62,6 +62,7 @@ serve(async (req) => {
     function classifyIntent(text: string) {
       if (/story|कहानी|kahani|tale|once upon/i.test(text)) return "story";
       if (/song|गाना|कविता|rhyme|sing|music/i.test(text)) return "song";
+      if (/roar|sound|noise|bark|meow|moo|quack|animal sound|sound like|sounds like/i.test(text)) return "sfx";
       if (/why|how|what|क्यों|क्या|explain|tell me about|what is/i.test(text)) return "question";
       return "chat";
     }
@@ -70,7 +71,7 @@ serve(async (req) => {
     const intent = classifyIntent(message);
     console.log(`🎯 Intent classified: "${intent}" for message: "${message}"`);
 
-    // CONTENT SWITCHBOARD: Fetch actual content when story requested
+    // CONTENT SWITCHBOARD: Fetch actual content when story or SFX requested
     let contentFromLibrary = null;
     if (intent === "story") {
       try {
@@ -101,6 +102,31 @@ serve(async (req) => {
         }
       } catch (error) {
         console.error('❌ Error fetching content:', error);
+      }
+    } else if (intent === "sfx") {
+      try {
+        console.log('🔊 SFX requested - fetching from content library...');
+        
+        // Extract animal/sound from message (tiger, lion, etc.)
+        const animalMatch = message.match(/like\s+a\s+(\w+)|(\w+)\s+sound|roar|bark|meow|moo|quack/i);
+        const requestedSound = animalMatch ? (animalMatch[1] || animalMatch[2] || 'tiger') : 'tiger';
+        
+        // Call get-content function to fetch SFX
+        const { data: contentResult, error: contentError } = await supabase.functions.invoke('get-content', {
+          body: {
+            type: 'sfx',
+            topic: requestedSound
+          }
+        });
+        
+        if (contentError) {
+          console.error('❌ SFX fetch error:', contentError);
+        } else if (contentResult?.content) {
+          contentFromLibrary = contentResult.content;
+          console.log('✅ SFX fetched from library:', contentFromLibrary.name);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching SFX:', error);
       }
     }
 
@@ -141,11 +167,17 @@ ${cultureHints}
 ${memoryContext}
 
 ${contentFromLibrary ? `
-STORY FROM LIBRARY (USE THIS EXACT CONTENT):
+${contentFromLibrary.type === 'story' ? `STORY FROM LIBRARY (USE THIS EXACT CONTENT):
 Title: ${contentFromLibrary.title}
 Content: ${contentFromLibrary.scenes ? contentFromLibrary.scenes[0] : contentFromLibrary.body || contentFromLibrary.content}
 
-IMPORTANT: When story requested, use the above story content. Read it naturally as if telling the story directly.
+IMPORTANT: When story requested, use the above story content. Read it naturally as if telling the story directly.` : ''}
+
+${contentFromLibrary.type === 'sfx' ? `SFX FROM LIBRARY:
+Sound: ${contentFromLibrary.name}
+Description: ${contentFromLibrary.description || 'Animal sound effect'}
+
+IMPORTANT: When SFX requested, acknowledge the sound effect and make the appropriate sound vocally (like "ROAAAAR!" for tiger). Be playful and imitate the sound with enthusiasm!` : ''}
 ` : ''}
 
 CONVERSATION RULES
