@@ -424,8 +424,10 @@ export const BuddyApp = () => {
               bedtimeEnd: "06:30"
             };
             
-            // Check health conditions
-            if (isBedtime(usageRules)) {
+            // Check health conditions (but only if this isn't already a health message)
+            const isHealthMessage = text.includes('bedtime') || text.includes('break') || text.includes("That's enough fun for today");
+            
+            if (!isHealthMessage && isBedtime(usageRules)) {
               console.log('🌙 Bedtime detected - playing goodnight message');
               const bedtimeMsg = getBedtimeMessage(childProfile.name);
               // Play bedtime message and lock until morning
@@ -433,14 +435,14 @@ export const BuddyApp = () => {
                 playVoice(bedtimeMsg);
                 // TODO: Lock mic until bedtimeEnd
               }, 1000);
-            } else if (hasExceededDailyLimit(updatedTelemetry, usageRules, usageRules.timezone)) {
+            } else if (!isHealthMessage && hasExceededDailyLimit(updatedTelemetry, usageRules, usageRules.timezone)) {
               console.log('⏰ Daily limit exceeded - playing limit message');
               const limitMsg = getDailyLimitMessage(childProfile.name);
               setTimeout(() => {
                 playVoice(limitMsg);
                 // TODO: Lock mic for rest of day
               }, 1000);
-            } else if (shouldBreak(updatedTelemetry, usageRules, usageRules.timezone)) {
+            } else if (!isHealthMessage && shouldBreak(updatedTelemetry, usageRules, usageRules.timezone)) {
               console.log('🧘‍♀️ Break time - encouraging healthy habits');
               const breakMsg = getBreakMessage(childProfile.name);
               const markedTelemetry = markBreakTime(updatedTelemetry);
