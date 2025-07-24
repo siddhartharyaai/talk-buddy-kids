@@ -38,3 +38,9 @@ verify_jwt = false
 
 [functions.speak-gtts]
 verify_jwt = false
+
+[functions.import-storyweaver]
+verify_jwt = false
+
+[functions.get-content]
+verify_jwt = false

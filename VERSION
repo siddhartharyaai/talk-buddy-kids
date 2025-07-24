@@ -1,8 +1,17 @@
-# 🤖 BUDDY AI COMPANION - VERSION 1.05
+# 🤖 BUDDY AI COMPANION - VERSION 1.06
 
-## 🚀 **LATEST BUILD: Buddy v1.05** - Health-Aware Guardrails Complete
+## 🚀 **LATEST BUILD: Buddy v1.06** - Content Switchboard & Multimedia Complete  
 **Release Date**: January 24, 2025  
-**Status**: ✅ PRODUCTION READY - Full Health Protection System
+**Status**: ✅ PRODUCTION READY - Dynamic Content Library System
+
+## 📝 **CHANGELOG v1.06** - CONTENT SWITCHBOARD & MULTIMEDIA
+- ✅ **Step 4-A**: Supabase Storage bucket 'content' with sub-folders (stories/, sfx/, rhymes/)
+- ✅ **Step 4-B**: StoryWeaver import edge function with JSON storage
+- ✅ **Step 4-C**: SFX handling system with CC0 audio support 
+- ✅ **Step 4-D**: Nursery rhyme collection (EN/HI) with lyrics
+- ✅ **Step 4-E**: Content switchboard edge function with 24h caching
+- ✅ **Step 4-F**: Intent detection for stories/rhymes/SFX with scene-by-scene playback
+- ✅ **Step 4-G**: Content request pipeline integrated into Buddy conversation flow
 
 ---
 

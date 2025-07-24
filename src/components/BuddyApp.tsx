@@ -642,7 +642,170 @@ export const BuddyApp = () => {
     return topics;
   };
 
-  // Get AI response from Buddy - Enhanced with Step 8 personalisation
+  // Step 4-F: Content intent detection
+  const detectContentIntent = (message: string): { type: 'story' | 'rhyme' | 'sfx' | null; topic: string; action?: string } => {
+    const msg = message.toLowerCase();
+    
+    // Story detection (English and Hindi)
+    if (msg.includes('story') || msg.includes('कहानी') || msg.includes('tell me about') || msg.includes('once upon')) {
+      const topic = extractTopicFromMessage(msg);
+      return { type: 'story', topic };
+    }
+    
+    // Rhyme/song detection
+    if (msg.includes('song') || msg.includes('rhyme') || msg.includes('sing') || msg.includes('गाना') || msg.includes('nursery')) {
+      const topic = extractTopicFromMessage(msg);
+      return { type: 'rhyme', topic };
+    }
+    
+    // Sound effect detection (animal sounds, etc.)
+    if (msg.includes('roar') || msg.includes('sound like') || msg.includes('make noise') || 
+        msg.includes('bark') || msg.includes('meow') || msg.includes('moo')) {
+      const action = msg.includes('tiger') ? 'tiger_roar' :
+                   msg.includes('dog') ? 'dog_bark' :
+                   msg.includes('cat') ? 'cat_meow' :
+                   msg.includes('cow') ? 'cow_moo' : 'random';
+      return { type: 'sfx', topic: 'animals', action };
+    }
+    
+    return { type: null, topic: 'any' };
+  };
+
+  const extractTopicFromMessage = (message: string): string => {
+    const topicMap = {
+      'animal': ['animal', 'tiger', 'lion', 'elephant', 'dog', 'cat', 'bird'],
+      'space': ['space', 'star', 'planet', 'moon', 'rocket', 'astronaut'],
+      'nature': ['tree', 'flower', 'forest', 'ocean', 'mountain', 'river'],
+      'transport': ['car', 'train', 'plane', 'bus', 'bike', 'boat']
+    };
+    
+    for (const [topic, keywords] of Object.entries(topicMap)) {
+      if (keywords.some(keyword => message.includes(keyword))) {
+        return topic;
+      }
+    }
+    
+    return 'any';
+  };
+
+  // Step 4-F: Handle content requests with switchboard
+  const handleContentRequest = async (intent: { type: 'story' | 'rhyme' | 'sfx'; topic: string; action?: string }, messageId: string) => {
+    try {
+      console.log('📚 Fetching content:', intent);
+      
+      const { data, error } = await supabase.functions.invoke('get-content', {
+        body: {
+          type: intent.type,
+          language: childProfile?.language?.[0] || 'en',
+          age: childProfile?.ageYears || 6,
+          topic: intent.topic
+        }
+      });
+      
+      if (error) {
+        console.error('❌ Content fetch error:', error);
+        throw error;
+      }
+      
+      const content = data.content;
+      console.log('📖 Content received:', content);
+      
+      if (intent.type === 'story') {
+        await handleStoryContent(content, messageId);
+      } else if (intent.type === 'rhyme') {
+        await handleRhymeContent(content, messageId);
+      } else if (intent.type === 'sfx') {
+        await handleSfxContent(content, messageId, intent.action);
+      }
+      
+      // Update learning memory with topic preference
+      if (childProfile) {
+        const memory = loadLearningMemory(childProfile.name);
+        const updatedTopics = { ...memory.favouriteTopics };
+        updatedTopics[intent.topic] = (updatedTopics[intent.topic] || 0) + 1;
+        updateLearningMemory(childProfile.name, { favouriteTopics: updatedTopics });
+      }
+      
+    } catch (error) {
+      console.error('❌ Content request failed:', error);
+      // Fallback to regular AI response
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId
+          ? { ...msg, content: "I couldn't find that content right now, but let's chat about something else! What interests you?", isProcessing: false }
+          : msg
+      ));
+    }
+  };
+
+  // Handle story content with scene-by-scene playback
+  const handleStoryContent = async (story: any, messageId: string) => {
+    const scenes = story.scenes || [story.body];
+    let currentScene = 0;
+    
+    const playNextScene = async () => {
+      if (currentScene < scenes.length) {
+        const scene = scenes[currentScene];
+        const sceneText = `${currentScene === 0 ? `Here's a story called "${story.title}": ` : ''}${scene}${currentScene < scenes.length - 1 ? ' ...should I continue?' : ' The end! Did you like the story?'}`;
+        
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId
+            ? { ...msg, content: sceneText, isProcessing: false }
+            : msg
+        ));
+        
+        await playVoice(sceneText);
+        currentScene++;
+      }
+    };
+    
+    await playNextScene();
+  };
+
+  // Handle rhyme content with singing style
+  const handleRhymeContent = async (rhyme: any, messageId: string) => {
+    const rhymeText = `Let me sing you "${rhyme.title}"! ${rhyme.lyrics ? rhyme.lyrics.join('\n') : rhyme.body}`;
+    
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId
+        ? { ...msg, content: rhymeText, isProcessing: false }
+        : msg
+    ));
+    
+    // TODO: Use Deepgram TTS with singing style when available
+    await playVoice(rhymeText);
+  };
+
+  // Handle sound effects with voice pitch shift simulation
+  const handleSfxContent = async (sfx: any, messageId: string, action?: string) => {
+    const responseText = `Listen to this! *${sfx.name}* Now let me try to make that sound too!`;
+    
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId
+        ? { ...msg, content: responseText, isProcessing: false }
+        : msg
+    ));
+    
+    // Play the SFX first if available
+    if (sfx.url) {
+      try {
+        const audio = new Audio(sfx.url);
+        await audio.play();
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for SFX to finish
+      } catch (error) {
+        console.error('❌ SFX playback failed:', error);
+      }
+    }
+    
+    // Then Buddy tries to imitate with voice
+    const imitationText = action === 'tiger_roar' ? 'ROAAAAR!' :
+                         action === 'dog_bark' ? 'Woof woof!' :
+                         action === 'cat_meow' ? 'Meow meow!' :
+                         'Here\'s my version of that sound!';
+    
+    await playVoice(imitationText);
+  };
+
+  // Get AI response from Buddy - Enhanced with content switchboard (Step 4-F)
   const getBuddyResponse = useCallback(async (userMessage: string) => {
     if (!childProfile) {
       console.error('❌ No child profile available for AI response');
@@ -652,12 +815,16 @@ export const BuddyApp = () => {
     // Step 8: Add transcript to learning memory
     addTranscript(childProfile.name, userMessage, 'user');
     
+    // Step 4-F: Content intent detection
+    const messageIntent = detectContentIntent(userMessage);
+    console.log('🎯 Content intent detected:', messageIntent);
+    
     // Add Buddy's thinking message
     const buddyMessageId = Date.now().toString();
     const thinkingMessage: ChatMessage = {
       id: buddyMessageId,
       type: 'buddy',
-      content: 'Let me think about that...',
+      content: messageIntent.type ? 'Let me find something special for you...' : 'Let me think about that...',
       timestamp: new Date(),
       isProcessing: true
     };
@@ -666,6 +833,12 @@ export const BuddyApp = () => {
 
     try {
       console.log('🤖 Getting AI response for:', userMessage);
+      
+      // Step 4-F: Handle content requests
+      if (messageIntent.type) {
+        await handleContentRequest(messageIntent, buddyMessageId);
+        return;
+      }
       
       // Step 8: Load learning memory and create summary for Gemini
       const learningMemory = loadLearningMemory(childProfile.name);
