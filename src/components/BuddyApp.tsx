@@ -667,66 +667,89 @@ export const BuddyApp = () => {
           throw new Error(`Audio playback failed: ${audio.error?.message || 'Unknown error'}`);
         });
 
-        // FIXED: Simplified and working audio play logic
+        // FIXED: Properly managed audio play logic
         const attemptPlay = async () => {
           try {
             console.log('🎵 Attempting to play audio...');
-            await audio.play();
             setIsSpeaking(true);
+            await audio.play();
             console.log('✅ Audio playing successfully!');
             
           } catch (playError) {
             console.error('❌ Play failed:', playError);
+            setIsSpeaking(false);
             
             if (playError.name === 'NotAllowedError') {
               console.log('🔊 Need user interaction for audio');
               
-              // Simple user interaction handler
-              const enableAudio = async () => {
-                try {
-                  await audio.play();
-                  setIsSpeaking(true);
-                  console.log('✅ Audio enabled after user interaction!');
+              // Create a promise that resolves when user interacts
+              return new Promise((resolve, reject) => {
+                let handled = false;
+                
+                const enableAudio = async (event) => {
+                  if (handled) return;
+                  handled = true;
                   
-                  // Remove listeners
-                  document.removeEventListener('click', enableAudio);
-                  document.removeEventListener('touchstart', enableAudio);
+                  console.log('👆 User interaction detected, playing audio...');
                   
-                } catch (retryError) {
-                  console.error('❌ Audio still failed:', retryError);
-                  setIsSpeaking(false);
-                  URL.revokeObjectURL(audioUrl);
-                  
-                  toast({
-                    title: "Audio Error",
-                    description: "Cannot play audio even with user interaction",
-                    variant: "destructive"
-                  });
-                }
-              };
-              
-              // Add interaction listeners
-              document.addEventListener('click', enableAudio, { once: true });
-              document.addEventListener('touchstart', enableAudio, { once: true });
-              document.addEventListener('keydown', enableAudio, { once: true });
-              
-              // Cleanup after 30 seconds
-              setTimeout(() => {
-                document.removeEventListener('click', enableAudio);
-                document.removeEventListener('touchstart', enableAudio);
-                document.removeEventListener('keydown', enableAudio);
-                URL.revokeObjectURL(audioUrl);
-                setIsSpeaking(false);
-              }, 30000);
+                  try {
+                    setIsSpeaking(true);
+                    await audio.play();
+                    console.log('✅ Audio enabled after user interaction!');
+                    resolve(true);
+                  } catch (retryError) {
+                    console.error('❌ Audio still failed after interaction:', retryError);
+                    setIsSpeaking(false);
+                    URL.revokeObjectURL(audioUrl);
+                    reject(new Error('Cannot play audio even with user interaction'));
+                  } finally {
+                    // Clean up all listeners
+                    document.removeEventListener('click', enableAudio);
+                    document.removeEventListener('touchstart', enableAudio);
+                    document.removeEventListener('keydown', enableAudio);
+                  }
+                };
+                
+                // Add interaction listeners
+                document.addEventListener('click', enableAudio);
+                document.addEventListener('touchstart', enableAudio);
+                document.addEventListener('keydown', enableAudio);
+                
+                // Auto-cleanup after 30 seconds
+                setTimeout(() => {
+                  if (!handled) {
+                    handled = true;
+                    document.removeEventListener('click', enableAudio);
+                    document.removeEventListener('touchstart', enableAudio);
+                    document.removeEventListener('keydown', enableAudio);
+                    URL.revokeObjectURL(audioUrl);
+                    setIsSpeaking(false);
+                    reject(new Error('Audio interaction timeout'));
+                  }
+                }, 30000);
+              });
               
             } else {
+              URL.revokeObjectURL(audioUrl);
               throw playError;
             }
           }
         };
 
-        // FIXED: Remove audio.load() call that was causing issues
-        await attemptPlay();
+        // Attempt to play the audio
+        try {
+          await attemptPlay();
+        } catch (playError) {
+          console.error('❌ Final audio play attempt failed:', playError);
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+          
+          toast({
+            title: "Audio Error", 
+            description: playError.message || "Cannot play audio",
+            variant: "destructive"
+          });
+        }
         
       } catch (blobError) {
         console.error('❌ Blob creation failed:', blobError);
