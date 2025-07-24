@@ -21,6 +21,7 @@ import {
   getDayPart
 } from '../utils/usageTimers';
 import { populateContentLibrary, verifyContent } from '../utils/populateContent';
+import { uploadTestStory } from '../utils/uploadTestStory';
 import confetti from 'canvas-confetti';
 
 export interface ChatMessage {
@@ -1725,6 +1726,26 @@ export const BuddyApp = () => {
             className="p-2 hover:bg-gray-100 rounded-full"
           >
             <Settings className="w-6 h-6 text-gray-600" />
+          </Button>
+          
+          {/* Upload test story button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              try {
+                toast({ title: "Uploading test story...", description: "Creating test animal story" });
+                await uploadTestStory();
+                toast({ title: "Test story uploaded!", description: "Now try asking for a story about animals" });
+              } catch (error) {
+                console.error('❌ Upload failed:', error);
+                toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+              }
+            }}
+            className="p-2 hover:bg-gray-100 rounded-full"
+            title="Upload Test Story"
+          >
+            📚
           </Button>
           
           {/* Test buttons for smoke tests */}
