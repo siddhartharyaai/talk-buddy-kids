@@ -29,7 +29,13 @@ export interface LearningMemory {
 }
 
 export const BuddyApp = () => {
-  console.log('🔍 BuddyApp component starting to render...');
+  // Production build: Remove debug logs for Step 10
+  if (import.meta.env.PROD) {
+    console.log = () => {};
+    console.debug = () => {};
+  } else {
+    console.log('🔍 BuddyApp component starting to render...');
+  }
 
   const [isRecording, setIsRecording] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -1058,8 +1064,9 @@ export const BuddyApp = () => {
         </div>
         
         <div className="flex items-center gap-2">
-          {/* STEP 0: Verification Test + Individual Tests */}
-          <div className="flex gap-1 mr-2">
+          {/* Step 10: Hide test buttons in production build v1.0.0 */}
+          {import.meta.env.DEV && (
+            <div className="flex gap-1 mr-2">
             <Button
               variant="ghost"
               size="sm"
@@ -1114,7 +1121,8 @@ export const BuddyApp = () => {
             >
               <span className="text-red-600 font-bold text-xs">9</span>
             </Button>
-          </div>
+            </div>
+          )}
           
           <Button
             variant="ghost"
