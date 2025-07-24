@@ -618,8 +618,8 @@ export const BuddyApp = () => {
           bytes[i] = binaryString.charCodeAt(i);
         }
         
-        // Create blob with explicit audio type
-        const audioBlob = new Blob([bytes], { type: 'audio/wav' });
+        // FIXED: Create blob with correct MP3 audio type (TTS generates MP3)
+        const audioBlob = new Blob([bytes], { type: 'audio/mp3' });
         const audioUrl = URL.createObjectURL(audioBlob);
         
         console.log('🎵 Audio Blob created successfully, size:', audioBlob.size, 'bytes');
@@ -725,8 +725,7 @@ export const BuddyApp = () => {
           }
         };
 
-        // Load and attempt to play
-        audio.load();
+        // FIXED: Remove audio.load() call that was causing issues
         await attemptPlay();
         
       } catch (blobError) {
