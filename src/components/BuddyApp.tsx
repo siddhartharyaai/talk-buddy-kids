@@ -915,7 +915,7 @@ export const BuddyApp = () => {
 
   // MASTER-PLAN 3 SANITY TESTS - Comprehensive Checklist
   const runMasterPlan3SanityTests = async () => {
-    console.log('\n🧪 MASTER-PLAN 3 SANITY TESTS STARTING...\n');
+    console.log('\n🧪 PATCH VERIFICATION - Running Master-Plan 3 Sanity Tests After Toast Removal...\n');
     
     const results = {
       coldStartEnglish: { pass: false, notes: '', latency: 0 },
