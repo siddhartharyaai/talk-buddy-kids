@@ -221,28 +221,10 @@ export const BuddyApp = () => {
       
       console.log(`📤 Sending ${base64Audio.length} characters to transcribe-audio`);
       
-    // Call Supabase edge function with retry logic for network resilience
-      let data, error;
-      let retries = 2;
-      
-      while (retries > 0) {
-        try {
-          const result = await supabase.functions.invoke('transcribe-audio', {
-            body: { audio: base64Audio }
-          });
-          data = result.data;
-          error = result.error;
-          break;
-        } catch (networkError) {
-          retries--;
-          if (retries === 0) {
-            error = networkError;
-          } else {
-            console.log(`🔄 Network retry ${3 - retries}/2`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
-      }
+    // Call Supabase edge function
+      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+        body: { audio: base64Audio }
+      });
       
       if (error) {
         console.error('❌ Transcription error:', error);
