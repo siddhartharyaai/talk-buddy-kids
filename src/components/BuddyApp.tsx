@@ -119,9 +119,18 @@ export const BuddyApp = () => {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        throw new Error('User not authenticated');
+        console.log('❌ No authenticated user found');
+        toast({
+          title: "Authentication required",
+          description: "Please log in to save your profile.",
+          variant: "destructive"
+        });
+        return;
       }
 
+      console.log('💾 Saving profile to database for user:', user.id);
+
+      // Convert frontend format to database format
       const dbProfile = {
         user_id: user.id,
         name: profile.name,
@@ -134,21 +143,22 @@ export const BuddyApp = () => {
         language: profile.language
       };
 
-      const { error } = await supabase
+      console.log('📦 Profile data to save:', dbProfile);
+
+      const { data, error } = await supabase
         .from('child_profiles')
         .upsert(dbProfile, { 
-          onConflict: 'user_id'
-        });
+          onConflict: 'user_id',
+          ignoreDuplicates: false 
+        })
+        .select();
 
       if (error) {
-        console.error('❌ Error saving profile to database:', error);
-        toast({
-          title: "Profile save failed",
-          description: "There was an error saving the profile. Please try again.",
-          variant: "destructive"
-        });
+        console.error('❌ Database error:', error);
+        throw error;
       } else {
-        console.log('✅ Profile saved to database');
+        console.log('✅ Profile saved to database:', data);
+        setShowSettings(false);
         toast({
           title: `Settings saved! 👋`,
           description: `Buddy is now ready for ${profile.name}!`,
@@ -401,16 +411,18 @@ export const BuddyApp = () => {
     try {
       const stream = streamRef.current || await initializeMicrophone();
       
-      // Ultra-fast MediaRecorder configuration for real-time STT
+      // FIXED: Use audio/wav format for better Deepgram compatibility
       const options = {
-        mimeType: 'audio/webm;codecs=opus',
-        audioBitsPerSecond: 12000  // Lower bitrate for blazing fast upload
+        mimeType: 'audio/wav',
+        audioBitsPerSecond: 16000  // Standard bitrate for better quality
       };
       
-      // Fallback if WebM/Opus not supported
-      const mimeType = MediaRecorder.isTypeSupported(options.mimeType) 
-        ? options.mimeType 
-        : 'audio/webm';
+      // Fallback options for different browsers
+      const mimeType = MediaRecorder.isTypeSupported('audio/wav') 
+        ? 'audio/wav'
+        : MediaRecorder.isTypeSupported('audio/webm') 
+        ? 'audio/webm'
+        : 'audio/mp4';
       
       const mediaRecorder = new MediaRecorder(stream, { 
         mimeType,
@@ -425,7 +437,7 @@ export const BuddyApp = () => {
           
           // BLAZING FAST: Process chunks immediately for real-time STT
           if (event.data.size > 1000) { // Only process meaningful chunks
-            const audioBlob = new Blob([event.data], { type: 'audio/webm' });
+            const audioBlob = new Blob([event.data], { type: mimeType });
             await processAudioChunk(audioBlob);
           }
         }
@@ -944,8 +956,8 @@ export const BuddyApp = () => {
         </div>
       </header>
 
-      {/* Chat Area */}
-      <div className="flex-1 p-4 overflow-y-auto">
+      {/* Chat Area - FIXED: Added pb-32 to prevent overlap with fixed bottom controls */}
+      <div className="flex-1 p-4 overflow-y-auto pb-32">
         <div className="max-w-2xl mx-auto space-y-4">
           {/* Welcome Message */}
           <Card className="p-4 bg-gradient-to-r from-blue-100 to-purple-100 border-blue-200">
@@ -1013,8 +1025,8 @@ export const BuddyApp = () => {
         </div>
       </div>
 
-      {/* Bottom Controls */}
-      <div className="p-6 bg-white/80 backdrop-blur-sm border-t border-blue-200">
+      {/* FIXED: Bottom Controls now fixed at bottom of viewport */}
+      <div className="fixed bottom-0 left-0 right-0 p-6 bg-white/90 backdrop-blur-sm border-t border-blue-200 z-10">
         <div className="max-w-2xl mx-auto flex justify-center">
           {/* Big Mic Button with animations */}
           <Button
