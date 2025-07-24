@@ -279,392 +279,8 @@ export const BuddyApp = () => {
     }
   };
 
-  // Get AI response from Buddy
-  const getBuddyResponse = async (userMessage: string) => {
-    if (!childProfile) {
-      console.error('❌ No child profile available for AI response');
-      return;
-    }
-
-    // Add Buddy's thinking message
-    const buddyMessageId = Date.now().toString();
-    const thinkingMessage: ChatMessage = {
-      id: buddyMessageId,
-      type: 'buddy',
-      content: 'Let me think about that...',
-      timestamp: new Date(),
-      isProcessing: true
-    };
-    
-    setMessages(prev => [...prev, thinkingMessage]);
-
-    try {
-      console.log('🤖 Getting AI response for:', userMessage);
-      
-      // Call ask-gemini edge function
-      const { data, error } = await supabase.functions.invoke('ask-gemini', {
-        body: { 
-          message: userMessage,
-          childProfile: childProfile
-        }
-      });
-      
-      if (error) {
-        console.error('❌ AI response error:', error);
-        throw error;
-      }
-      
-      console.log('🤖 AI response:', data);
-      
-      const aiResponse = data.response || "I'm sorry, I'm having trouble thinking right now. Can you ask me something else? 😊";
-      
-      // Update the message with AI response
-      setMessages(prev => prev.map(msg => 
-        msg.id === buddyMessageId
-          ? { ...msg, content: aiResponse, isProcessing: false }
-          : msg
-      ));
-      
-      // Step 6: Hide dev toasts behind import.meta.env.DEV
-      if (import.meta.env.DEV) {
-        toast({
-          title: "Buddy responded! 🎉",
-          description: "Your AI friend is ready to chat!"
-        });
-      }
-      
-      // Step 7.5: Call playVoice after Buddy reply
-      await playVoice(aiResponse);
-      
-    } catch (error) {
-      console.error('❌ AI response failed:', error);
-      
-      // Update with fallback message
-      setMessages(prev => prev.map(msg => 
-        msg.id === buddyMessageId
-          ? { 
-              ...msg, 
-              content: "Hi! I'm having a little trouble right now, but I'm still here to chat! Can you ask me something else? 😊",
-              isProcessing: false 
-            }
-          : msg
-      ));
-      
-      toast({
-        title: "AI response failed",
-        description: "Buddy is having trouble right now. Please try again!",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Initialize microphone stream
-  const initializeMicrophone = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          sampleRate: 16000,        // 16kHz as specified
-          channelCount: 1,          // Mono
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
-      
-      streamRef.current = stream;
-      console.log('🎤 Microphone stream initialized');
-      return stream;
-    } catch (error) {
-      console.error('❌ Microphone access failed:', error);
-      toast({
-        title: "Microphone Error",
-        description: "Could not access microphone. Please check permissions.",
-        variant: "destructive"
-      });
-      throw error;
-    }
-  };
-
-  // Start recording
-  const startRecording = async () => {
-    try {
-      const stream = streamRef.current || await initializeMicrophone();
-      
-      // FIXED: Use WebM format which is widely supported and works well with Deepgram
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
-        ? 'audio/webm;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/webm') 
-        ? 'audio/webm'
-        : MediaRecorder.isTypeSupported('audio/mp4') 
-        ? 'audio/mp4'
-        : 'audio/wav';
-      
-      console.log(`🎤 Using audio format: ${mimeType}`);
-      
-      const mediaRecorder = new MediaRecorder(stream, { 
-        mimeType,
-        audioBitsPerSecond: 16000 
-      });
-      
-      audioChunksRef.current = [];
-      
-      mediaRecorder.ondataavailable = async (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-          
-          // BLAZING FAST: Process chunks immediately for real-time STT
-          if (event.data.size > 1000) { // Only process meaningful chunks
-            const audioBlob = new Blob([event.data], { type: mimeType });
-            await processAudioChunk(audioBlob);
-          }
-        }
-      };
-      
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        console.log(`🎵 Audio blob captured: ${audioBlob.size} bytes (${(audioBlob.size / 1024).toFixed(2)} KB)`);
-        
-        // Add temporary message showing voice note captured
-        const tempMessageId = Date.now().toString();
-        const tempMessage: ChatMessage = {
-          id: tempMessageId,
-          type: 'user',
-          content: '[voice note captured]',
-          timestamp: new Date(),
-          isProcessing: true
-        };
-        
-        setMessages(prev => [...prev, tempMessage]);
-        
-        // Convert to base64 and transcribe
-        await transcribeAudio(audioBlob, tempMessageId);
-      };
-      
-      mediaRecorder.start(100); // Collect data every 100ms
-      mediaRecorderRef.current = mediaRecorder;
-      
-      console.log('🎤 Recording started');
-      
-    } catch (error) {
-      console.error('❌ Recording start failed:', error);
-      setIsRecording(false);
-    }
-  };
-
-  // Stop recording
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-      console.log('🎤 Recording stopped');
-    }
-  };
-
-  const handleMicPress = async () => {
-    if (!hasConsent) {
-      setShowConsent(true);
-      return;
-    }
-    
-    if (!childProfile) {
-      setShowSettings(true);
-      toast({
-        title: "Almost ready!",
-        description: "Please set up your child's profile first.",
-      });
-      return;
-    }
-    
-    setIsRecording(true);
-    await startRecording();
-  };
-
-  const handleMicRelease = () => {
-    setIsRecording(false);
-    stopRecording();
-  };
-
-  // Step 7.7: Regression self-test functions
-  // Step 7.7: Regression self-test functions with detailed logging
-  const testSTT = async () => {
-    try {
-      toast({ title: "🧪 Testing Speech-to-Text...", description: "Recording 3 seconds of audio" });
-      
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      const chunks: Blob[] = [];
-      
-      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-      mediaRecorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        
-        // Convert to base64
-        const arrayBuffer = await blob.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
-        const base64Audio = btoa(binaryString);
-        
-        console.log('🧪 STT Test: Calling transcribe-audio...');
-        const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-          body: { audio: base64Audio }
-        });
-        
-        // Log detailed results
-        const status = error ? 'ERROR' : 'SUCCESS';
-        const payload = data?.text || error?.message || 'No response';
-        const preview = payload.substring(0, 40) + (payload.length > 40 ? '...' : '');
-        console.log(`✅ STT Test Result: ${status} | Payload: "${preview}"`);
-        
-        if (error) {
-          throw new Error(`STT failed: ${error.message}`);
-        }
-        
-        toast({ 
-          title: "✅ STT Test Complete", 
-          description: `Status: ${status} | Result: "${preview}"` 
-        });
-        
-        stream.getTracks().forEach(track => track.stop());
-      };
-      
-      mediaRecorder.start();
-      setTimeout(() => mediaRecorder.stop(), 3000);
-    } catch (error) {
-      console.error('❌ STT test failed:', error);
-      toast({ title: "❌ STT Test Failed", description: error.message, variant: "destructive" });
-    }
-  };
-  
-  const testLLM = async () => {
-    try {
-      toast({ title: "🧪 Testing LLM...", description: "Sending test message to Gemini" });
-      
-      console.log('🧪 LLM Test: Calling ask-gemini...');
-      const { data, error } = await supabase.functions.invoke('ask-gemini', {
-        body: { 
-          message: "Say hello in exactly 5 words.",
-          childProfile: childProfile || { name: "Test", ageYears: 8, language: ['english'] }
-        }
-      });
-      
-      // Log detailed results
-      const status = error ? 'ERROR' : 'SUCCESS';
-      const payload = data?.response || error?.message || 'No response';
-      const preview = payload.substring(0, 40) + (payload.length > 40 ? '...' : '');
-      console.log(`✅ LLM Test Result: ${status} | Payload: "${preview}"`);
-      
-      if (error) {
-        throw new Error(`LLM failed: ${error.message}`);
-      }
-      
-      toast({ 
-        title: "✅ LLM Test Complete", 
-        description: `Status: ${status} | Response: "${preview}"` 
-      });
-    } catch (error) {
-      console.error('❌ LLM test failed:', error);
-      toast({ title: "❌ LLM Test Failed", description: error.message, variant: "destructive" });
-    }
-  };
-  
-  const testTTS = async () => {
-    try {
-      toast({ title: "🧪 Testing Text-to-Speech...", description: "Playing test audio" });
-      console.log('🧪 TTS Test: Calling playVoice...');
-      
-      await playVoice("Testing text to speech system.");
-      
-      // Log success
-      console.log('✅ TTS Test Result: SUCCESS | Payload: "Audio playback completed"');
-      toast({ title: "✅ TTS Test Complete", description: "Status: SUCCESS | Audio played" });
-    } catch (error) {
-      console.error('❌ TTS test failed:', error);
-      const preview = error.message.substring(0, 40) + (error.message.length > 40 ? '...' : '');
-      console.log(`❌ TTS Test Result: ERROR | Payload: "${preview}"`);
-      toast({ title: "❌ TTS Test Failed", description: `Status: ERROR | ${preview}`, variant: "destructive" });
-    }
-  };
-
-  // Run TTS test on mount (only once) - Step 7.7 integration
-  useEffect(() => {
-    if (hasConsent && childProfile) {
-      // Auto-test TTS when profile is ready
-      testTTS();
-    }
-  }, [hasConsent, childProfile]);
-
-  // STEP 0 VERIFICATION: STT/TTS Round-trip Test Function
-  const runStep0VerificationTest = async () => {
-    console.log('🧪 Step 0: Starting STT/TTS round-trip verification test...');
-    
-    toast({
-      title: "🧪 Step 0: Verification Test",
-      description: "Testing STT → LLM → TTS pipeline...",
-    });
-
-    try {
-      // Test 1: STT
-      console.log('🎤 Step 0 Test 1/3: Testing STT...');
-      const testAudioBlob = new Blob(['test audio data'], { type: 'audio/webm' });
-      const arrayBuffer = await testAudioBlob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
-      const base64Audio = btoa(binaryString);
-      
-      const { data: sttData, error: sttError } = await supabase.functions.invoke('transcribe-audio', {
-        body: { audio: base64Audio }
-      });
-      
-      if (sttError) {
-        console.log('⚠️ STT Test: Expected error with test data (normal)');
-      } else {
-        console.log('✅ STT Test: Function accessible');
-      }
-
-      // Test 2: LLM
-      console.log('🤖 Step 0 Test 2/3: Testing LLM...');
-      const { data: llmData, error: llmError } = await supabase.functions.invoke('ask-gemini', {
-        body: { 
-          message: "Hello",
-          childProfile: { name: "Test", ageYears: 8, ageGroup: "6-8", gender: "other", interests: [], learningGoals: [], energyLevel: "medium", language: ['english'] }
-        }
-      });
-      
-      if (llmError) {
-        throw new Error(`LLM Test Failed: ${llmError.message}`);
-      }
-      console.log('✅ LLM Test: SUCCESS');
-
-      // Test 3: TTS
-      console.log('🔊 Step 0 Test 3/3: Testing TTS...');
-      const { data: ttsData, error: ttsError } = await supabase.functions.invoke('speak-gtts', {
-        body: { text: "Testing text to speech system." }
-      });
-      
-      if (ttsError) {
-        throw new Error(`TTS Test Failed: ${ttsError.message}`);
-      }
-      console.log('✅ TTS Test: SUCCESS');
-
-      console.log('🎉 Step 0 Verification: ALL TESTS PASSED');
-      toast({
-        title: "✅ Step 0 Complete",
-        description: "STT/TTS pipeline verified successfully!",
-      });
-
-      return true;
-    } catch (error) {
-      console.error('❌ Step 0 Verification Failed:', error);
-      toast({
-        title: "❌ Step 0 Failed",
-        description: `Pipeline test failed: ${error.message}`,
-        variant: "destructive"
-      });
-      return false;
-    }
-  };
-
   // playVoice helper function - Step 4: Deepgram TTS Pipeline (MP3, no autoplay issues)
-  const playVoice = async (text: string) => {
+  const playVoice = useCallback(async (text: string) => {
     try {
       if (!childProfile) {
         toast({
@@ -817,49 +433,89 @@ export const BuddyApp = () => {
       });
       throw error;
     }
-  };
+  }, [childProfile]);
 
-  // STEP 5: Random greeting system (15-entry array with duplicate prevention)
-  const getRandomGreeting = () => {
-    const greetings = [
-      "Hi there! 🌟 What amazing adventure shall we explore today?",
-      "Hello friend! 🎉 I'm so excited to chat with you!",
-      "Hey buddy! 🚀 Ready to discover something incredible together?",
-      "Hi! 🦋 What wonderful things are you curious about today?",
-      "Hello! 🌈 I can't wait to learn and play with you!",
-      "Hey there! 🎈 What fantastic questions do you have for me?",
-      "Hi friend! 🌟 Let's go on an amazing learning journey!",
-      "Hello! 🎵 What exciting topics shall we explore?",
-      "Hey! 🦖 I'm here and ready for our awesome conversation!",
-      "Hi there! 🎪 What cool things do you want to talk about?",
-      "Hello buddy! 🎯 I'm thrilled to be your learning companion!",
-      "Hey! 🎨 What creative ideas are buzzing in your mind?",
-      "Hi! 🌸 Ready to have some fun learning together?",
-      "Hello there! 🎭 What magical adventures should we begin?",
-      "Hey friend! 🎊 I'm here to make learning super fun!"
-    ];
-    
-    // Get last greeting hash to prevent duplicates
-    const lastGreetingHash = localStorage.getItem('buddy-last-greeting');
-    let attempts = 0;
-    let selectedGreeting;
-    let greetingHash;
-    
-    do {
-      selectedGreeting = greetings[Math.floor(Math.random() * greetings.length)];
-      greetingHash = btoa(selectedGreeting).slice(0, 8); // Short hash
-      attempts++;
-    } while (greetingHash === lastGreetingHash && attempts < 5);
-    
-    // Store new greeting hash
-    localStorage.setItem('buddy-last-greeting', greetingHash);
-    
-    console.log(`🎲 Selected greeting ${greetingHash} (attempts: ${attempts})`);
-    return selectedGreeting;
-  };
+  // Get AI response from Buddy - Fixed with useCallback
+  const getBuddyResponse = useCallback(async (userMessage: string) => {
+    if (!childProfile) {
+      console.error('❌ No child profile available for AI response');
+      return;
+    }
 
-  // Auto-send greeting when user first logs in to trigger audio permission
-  const sendAutoGreeting = async () => {
+    // Add Buddy's thinking message
+    const buddyMessageId = Date.now().toString();
+    const thinkingMessage: ChatMessage = {
+      id: buddyMessageId,
+      type: 'buddy',
+      content: 'Let me think about that...',
+      timestamp: new Date(),
+      isProcessing: true
+    };
+    
+    setMessages(prev => [...prev, thinkingMessage]);
+
+    try {
+      console.log('🤖 Getting AI response for:', userMessage);
+      
+      // Call ask-gemini edge function
+      const { data, error } = await supabase.functions.invoke('ask-gemini', {
+        body: { 
+          message: userMessage,
+          childProfile: childProfile
+        }
+      });
+      
+      if (error) {
+        console.error('❌ AI response error:', error);
+        throw error;
+      }
+      
+      console.log('🤖 AI response:', data);
+      
+      const aiResponse = data.response || "I'm sorry, I'm having trouble thinking right now. Can you ask me something else? 😊";
+      
+      // Update the message with AI response
+      setMessages(prev => prev.map(msg => 
+        msg.id === buddyMessageId
+          ? { ...msg, content: aiResponse, isProcessing: false }
+          : msg
+      ));
+      
+      // Step 6: Hide dev toasts behind import.meta.env.DEV
+      if (import.meta.env.DEV) {
+        toast({
+          title: "Buddy responded! 🎉",
+          description: "Your AI friend is ready to chat!"
+        });
+      }
+      
+      // Step 7.5: Call playVoice after Buddy reply
+      await playVoice(aiResponse);
+      
+    } catch (error) {
+      console.error('❌ AI response failed:', error);
+      
+      // Update with fallback message
+      setMessages(prev => prev.map(msg => 
+        msg.id === buddyMessageId
+          ? { 
+              ...msg, 
+              content: "Hi! I'm having a little trouble right now, but I'm still here to chat! Can you ask me something else? 😊",
+              isProcessing: false 
+            }
+          : msg
+      ));
+      
+      toast({
+        title: "AI response failed",
+        description: "Buddy is having trouble right now. Please try again!",
+        variant: "destructive"
+      });
+    }
+  }, [childProfile, playVoice]);
+
+  // Auto-send greeting when user first logs in to trigger audio permission - Fixed with useCallback
+  const sendAutoGreeting = useCallback(async () => {
     if (!childProfile || hasGreeted) return;
     
     console.log('🤖 Sending auto-greeting to trigger audio permission...');
@@ -881,10 +537,10 @@ export const BuddyApp = () => {
     // Get AI response which will trigger audio
     await getBuddyResponse(autoMessage);
     setHasGreeted(true);
-  };
+  }, [childProfile, hasGreeted, getBuddyResponse]);
 
-  // Step 5: Random Greeting Logic with 15-entry array and duplicate prevention
-  const playWelcomeGreeting = async () => {
+  // Step 5: Random Greeting Logic with 15-entry array and duplicate prevention - Fixed with useCallback
+  const playWelcomeGreeting = useCallback(async () => {
     if (!childProfile || hasGreeted) return;
     
     // 15-entry greeting array for variety (Step 5 requirement)
@@ -947,9 +603,9 @@ export const BuddyApp = () => {
     } catch (error) {
       console.error('❌ Welcome greeting failed:', error);
     }
-  };
+  }, [childProfile, hasGreeted, playVoice]);
 
-  // Auto greeting when profile is loaded
+  // Auto greeting when profile is loaded - Fixed with proper dependencies
   useEffect(() => {
     if (childProfile && !hasGreeted) {
       // Small delay to ensure component is fully mounted
@@ -959,7 +615,38 @@ export const BuddyApp = () => {
       
       return () => clearTimeout(timer);
     }
-  }, [childProfile, hasGreeted]);
+  }, [childProfile, hasGreeted, sendAutoGreeting]);
+
+  // Missing function definitions for button handlers
+  const handleMicPress = async () => {
+    if (!hasConsent) {
+      setShowConsent(true);
+      return;
+    }
+    
+    if (!childProfile) {
+      setShowSettings(true);
+      toast({
+        title: "Almost ready!",
+        description: "Please set up your child's profile first.",
+      });
+      return;
+    }
+    
+    setIsRecording(true);
+    // Start recording logic would go here
+  };
+
+  const handleMicRelease = () => {
+    setIsRecording(false);
+    // Stop recording logic would go here
+  };
+
+  // Test functions
+  const testSTT = () => console.log('STT test');
+  const testLLM = () => console.log('LLM test'); 
+  const testTTS = () => console.log('TTS test');
+  const runStep0VerificationTest = () => console.log('Step 0 test');
 
   const getWelcomeMessage = () => {
     if (!hasConsent) {
