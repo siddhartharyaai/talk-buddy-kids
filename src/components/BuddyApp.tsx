@@ -1126,12 +1126,12 @@ export const BuddyApp = () => {
           {/* Big Mic Button with Step 6 pulse animation while recording */}
           <Button
             className={`
-              w-20 h-20 rounded-full shadow-lg transition-all duration-200 
+              w-20 h-20 rounded-full shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl
               ${isRecording 
                 ? 'bg-red-500 hover:bg-red-600 scale-110 shadow-red-200 animate-mic-pulse' 
                 : isSpeaking
                 ? 'bg-green-500 hover:bg-green-600 scale-105 shadow-green-200 animate-pulse'
-                : 'bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-blue-200 hover-scale'
+                : 'bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-blue-200'
               }
               ${(!hasConsent || !childProfile) ? 'opacity-75' : ''}
             `}
@@ -1145,8 +1145,8 @@ export const BuddyApp = () => {
           </Button>
         </div>
         
-        {/* Hint Text with animations */}
-        <p className="text-center text-gray-600 text-sm mt-4 animate-fade-in">
+        {/* Hint Text with enhanced animations */}
+        <p className="text-center text-muted-foreground text-sm mt-4 animate-smooth-fade-in transition-all duration-300">
           {!hasConsent ? "Click to get started" :
            !childProfile ? "Set up profile first" :
            isSpeaking ? "🔊 Buddy is speaking..." :
