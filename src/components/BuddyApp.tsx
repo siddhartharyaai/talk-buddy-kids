@@ -97,19 +97,19 @@ export const BuddyApp = () => {
     // Open settings to configure child profile
     setShowSettings(true);
     
-    toast({
-      title: "Welcome to Buddy! 🎉",
-      description: "Please set up your child's profile to get started.",
-    });
+        // toast({
+        //   title: "Welcome to Buddy! 🎉",
+        //   description: "Please set up your child's profile to get started.",
+        // });
   };
 
   const handleConsentDecline = () => {
     setShowConsent(false);
-    toast({
-      title: "No problem!",
-      description: "You can enable Buddy anytime from the settings.",
-      variant: "destructive"
-    });
+    // toast({
+    //   title: "No problem!",
+    //   description: "You can enable Buddy anytime from the settings.",
+    //   variant: "destructive"
+    // });
   };
 
   const handleProfileSave = async (profile: ChildProfile) => {
@@ -121,11 +121,11 @@ export const BuddyApp = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         console.log('❌ No authenticated user found');
-        toast({
-          title: "Authentication required",
-          description: "Please log in to save your profile.",
-          variant: "destructive"
-        });
+        // toast({
+        //   title: "Authentication required",
+        //   description: "Please log in to save your profile.",
+        //   variant: "destructive"
+        // });
         return;
       }
 
@@ -160,18 +160,18 @@ export const BuddyApp = () => {
       } else {
         console.log('✅ Profile saved to database:', data);
         setShowSettings(false);
-        toast({
-          title: `Settings saved! 👋`,
-          description: `Buddy is now ready for ${profile.name}!`,
-        });
+        // toast({
+        //   title: `Settings saved! 👋`,
+        //   description: `Buddy is now ready for ${profile.name}!`,
+        // });
       }
     } catch (error) {
       console.error('❌ Database save failed:', error);
-      toast({
-        title: "Profile save failed",
-        description: "There was an error saving the profile. Please try again.",
-        variant: "destructive"
-      });
+      // toast({
+      //   title: "Profile save failed",
+      //   description: "There was an error saving the profile. Please try again.",
+      //   variant: "destructive"
+      // });
     }
   };
 
@@ -186,17 +186,17 @@ export const BuddyApp = () => {
       setHasGreeted(false);
       localStorage.removeItem('buddy-consent');
       
-      toast({
-        title: "Logged out successfully",
-        description: "Thanks for using Buddy! Come back anytime.",
-      });
+      // toast({
+      //   title: "Logged out successfully",
+      //   description: "Thanks for using Buddy! Come back anytime.",
+      // });
     } catch (error) {
       console.error('❌ Logout failed:', error);
-      toast({
-        title: "Logout failed",
-        description: "There was an error logging out.",
-        variant: "destructive"
-      });
+      // toast({
+      //   title: "Logout failed",
+      //   description: "There was an error logging out.",
+      //   variant: "destructive"
+      // });
     }
   };
 
@@ -243,16 +243,16 @@ export const BuddyApp = () => {
       ));
       
       if (!transcribedText || transcribedText.trim() === '') {
-        toast({
-          title: "Empty transcript",
-          description: "Deepgram gave an empty transcript – try again?",
-          variant: "destructive"
-        });
+        // toast({
+        //   title: "Empty transcript",
+        //   description: "Deepgram gave an empty transcript – try again?",
+        //   variant: "destructive"
+        // });
       } else {
-        toast({
-          title: "Speech recognized! 🎯",
-          description: `"${transcribedText.slice(0, 50)}${transcribedText.length > 50 ? '...' : ''}"`
-        });
+        // toast({
+        //   title: "Speech recognized! 🎯",
+        //   description: `"${transcribedText.slice(0, 50)}${transcribedText.length > 50 ? '...' : ''}"`
+        // });
         
         // Get AI response from Buddy
         await getBuddyResponse(transcribedText);
@@ -268,11 +268,11 @@ export const BuddyApp = () => {
           : msg
       ));
       
-      toast({
-        title: "Transcription failed",
-        description: "Could not convert speech to text. Please try again.",
-        variant: "destructive"
-      });
+      // toast({
+      //   title: "Transcription failed",
+      //   description: "Could not convert speech to text. Please try again.",
+      //   variant: "destructive"
+      // });
     }
   };
 
@@ -322,10 +322,10 @@ export const BuddyApp = () => {
           : msg
       ));
       
-      toast({
-        title: "Buddy responded! 🎉",
-        description: "Your AI friend is ready to chat!"
-      });
+      // toast({
+      //   title: "Buddy responded! 🎉",
+      //   description: "Your AI friend is ready to chat!"
+      // });
       
       // Step 7.5: Call playVoice after Buddy reply
       await playVoice(aiResponse);
@@ -344,11 +344,11 @@ export const BuddyApp = () => {
           : msg
       ));
       
-      toast({
-        title: "AI response failed",
-        description: "Buddy is having trouble right now. Please try again!",
-        variant: "destructive"
-      });
+      // toast({
+      //   title: "AI response failed",
+      //   description: "Buddy is having trouble right now. Please try again!",
+      //   variant: "destructive"
+      // });
     }
   };
 
@@ -370,11 +370,11 @@ export const BuddyApp = () => {
       return stream;
     } catch (error) {
       console.error('❌ Microphone access failed:', error);
-      toast({
-        title: "Microphone Error",
-        description: "Could not access microphone. Please check permissions.",
-        variant: "destructive"
-      });
+      // toast({
+      //   title: "Microphone Error",
+      //   description: "Could not access microphone. Please check permissions.",
+      //   variant: "destructive"
+      // });
       throw error;
     }
   };
@@ -461,10 +461,10 @@ export const BuddyApp = () => {
     
     if (!childProfile) {
       setShowSettings(true);
-      toast({
-        title: "Almost ready!",
-        description: "Please set up your child's profile first.",
-      });
+      // toast({
+      //   title: "Almost ready!",
+      //   description: "Please set up your child's profile first.",
+      // });
       return;
     }
     
@@ -578,23 +578,17 @@ export const BuddyApp = () => {
     }
   };
 
-  // Run TTS test on mount (only once) - Step 7.7 integration
-  useEffect(() => {
-    if (hasConsent && childProfile) {
-      // Auto-test TTS when profile is ready
-      testTTS();
-    }
-  }, [hasConsent, childProfile]);
+  // Auto TTS test disabled per user request
 
   // playVoice helper function
   const playVoice = async (text: string) => {
     try {
       if (!childProfile) {
-        toast({
-          title: "Profile needed",
-          description: "Please set up child profile first",
-          variant: "destructive"
-        });
+        // toast({
+        //   title: "Profile needed",
+        //   description: "Please set up child profile first",
+        //   variant: "destructive"
+        // });
         return;
       }
 
@@ -669,10 +663,10 @@ export const BuddyApp = () => {
             });
           }
           
-          toast({
-            title: "✅ Done speaking!",
-            description: "What would you like to talk about next?",
-          });
+          // toast({
+          //   title: "✅ Done speaking!",
+          //   description: "What would you like to talk about next?",
+          // });
         });
 
         audio.addEventListener('error', (e) => {
@@ -690,10 +684,10 @@ export const BuddyApp = () => {
             await audio.play();
             console.log('✅ Audio playing successfully!');
             
-            toast({
-              title: "🎵 Buddy is speaking!",
-              description: "Listen to your friendly AI companion!",
-            });
+            // toast({
+            //   title: "🎵 Buddy is speaking!",
+            //   description: "Listen to your friendly AI companion!",
+            // });
             
           } catch (playError) {
             console.error('❌ Play failed:', playError);
@@ -701,11 +695,11 @@ export const BuddyApp = () => {
             if (playError.name === 'NotAllowedError') {
               setIsSpeaking(false);
               
-              toast({
-                title: "🔊 Click to hear Buddy!",
-                description: "Browser needs your permission to play audio. Click anywhere!",
-                variant: "default"
-              });
+              // toast({
+              //   title: "🔊 Click to hear Buddy!",
+              //   description: "Browser needs your permission to play audio. Click anywhere!",
+              //   variant: "default"
+              // });
               
               // Enhanced user interaction handler
               const enableAudio = async (event: Event) => {
@@ -715,10 +709,10 @@ export const BuddyApp = () => {
                   await audio.play();
                   console.log('✅ Audio playing after user interaction!');
                   
-                  toast({
-                    title: "🎵 Buddy is speaking!",
-                    description: "Audio enabled successfully!",
-                  });
+                  // toast({
+                  //   title: "🎵 Buddy is speaking!",
+                  //   description: "Audio enabled successfully!",
+                  // });
                   
                   // Remove all listeners
                   document.removeEventListener('click', enableAudio);
@@ -730,11 +724,11 @@ export const BuddyApp = () => {
                   setIsSpeaking(false);
                   URL.revokeObjectURL(audioUrl);
                   
-                  toast({
-                    title: "Audio Error",
-                    description: "Cannot play audio even with user interaction",
-                    variant: "destructive"
-                  });
+                  // toast({
+                  //   title: "Audio Error",
+                  //   description: "Cannot play audio even with user interaction",
+                  //   variant: "destructive"
+                  // });
                 }
               };
               
@@ -770,12 +764,34 @@ export const BuddyApp = () => {
     } catch (error) {
       console.error('❌ SURESHOT playVoice failed:', error);
       setIsSpeaking(false);
-      toast({
-        title: "Voice Error",
-        description: `Audio system failed: ${error.message}`,
-        variant: "destructive"
-      });
+      // toast({
+      //   title: "Voice Error",
+      //   description: `Audio system failed: ${error.message}`,
+      //   variant: "destructive"
+      // });
     }
+  };
+
+  // Dynamic conversation starters for variety
+  const getRandomConversationStarter = () => {
+    const starters = [
+      "Did you see any fluffy clouds today? What shape did they look like?",
+      "What's the most interesting animal you've learned about recently?",
+      "If you could travel to any planet, which one would you choose and why?",
+      "What's your favorite color, and what does it remind you of?",
+      "Have you discovered anything cool in nature lately?",
+      "What's the most fun thing you did this week?",
+      "If you could have any superpower, what would it be?",
+      "What's your favorite season and what do you love most about it?",
+      "Do you have a favorite book or story? What's it about?",
+      "What makes you smile the biggest smile?",
+      "If you could be any animal for a day, which would you pick?",
+      "What's the coolest thing you know about space?",
+      "What's your favorite game to play with friends?",
+      "If you could invent something magical, what would it do?",
+      "What's the most beautiful thing you've seen in nature?"
+    ];
+    return starters[Math.floor(Math.random() * starters.length)];
   };
 
   // Auto-send greeting when user first logs in to trigger audio permission
@@ -798,8 +814,21 @@ export const BuddyApp = () => {
     
     setMessages(prev => [...prev, userMsg]);
     
-    // Get AI response which will trigger audio
-    await getBuddyResponse(autoMessage);
+    // Get AI response with dynamic starter question
+    const dynamicResponse = `Hi ${childProfile.name}! 🌟 I'm so excited to chat with you today! ${getRandomConversationStarter()}`;
+    
+    // Add Buddy's response with dynamic content
+    const buddyMsg: ChatMessage = {
+      id: (Date.now() + 1).toString(),
+      type: 'buddy', 
+      content: dynamicResponse,
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, buddyMsg]);
+    
+    // Play the dynamic response
+    await playVoice(dynamicResponse);
     setHasGreeted(true);
   };
 
