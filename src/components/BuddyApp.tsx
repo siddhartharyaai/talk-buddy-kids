@@ -25,6 +25,7 @@ import { uploadTestStory } from '../utils/uploadTestStory';
 import { testGetContent } from '../utils/testGetContent';
 import { testStorageAccess } from '../utils/testStorageAccess';
 import { uploadTestSfx } from '../utils/uploadTestSfx';
+import { testSfxAccess } from '../utils/testSfxAccess';
 import confetti from 'canvas-confetti';
 
 export interface ChatMessage {
@@ -1769,6 +1770,30 @@ export const BuddyApp = () => {
             title="Upload Test SFX"
           >
             🔊
+          </Button>
+          
+          {/* Test SFX access button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              try {
+                toast({ title: "Testing SFX access...", description: "Checking storage and download" });
+                const result = await testSfxAccess();
+                if (result.success) {
+                  toast({ title: "✅ SFX test passed!", description: `Found: ${result.sfx.name}` });
+                } else {
+                  toast({ title: "❌ SFX test failed", description: result.error, variant: "destructive" });
+                }
+              } catch (error) {
+                console.error('❌ SFX test error:', error);
+                toast({ title: "SFX test error", description: error?.message || "Unknown error", variant: "destructive" });
+              }
+            }}
+            className="p-2 hover:bg-gray-100 rounded-full"
+            title="Test SFX Access"
+          >
+            🧪
           </Button>
           
           {/* Test get-content function */}
