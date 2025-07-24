@@ -253,7 +253,6 @@ async function getSfxContent(topic: string) {
       } else {
         console.log(`⏭️ Skipping non-JSON file: ${file.name}`);
       }
-
     }
 
     console.log(`📊 Found ${matchingFiles.length} matching SFX files`);
