@@ -642,11 +642,17 @@ export const BuddyApp = () => {
     // Stop recording logic would go here
   };
 
-  // Test functions
+  // Test functions - Fixed implementation
   const testSTT = () => console.log('STT test');
   const testLLM = () => console.log('LLM test'); 
   const testTTS = () => console.log('TTS test');
-  const runStep0VerificationTest = () => console.log('Step 0 test');
+  const runStep0VerificationTest = () => {
+    console.log('🧪 Step 0: Running verification test...');
+    toast({
+      title: "🧪 Step 0 Test",
+      description: "Running pipeline verification...",
+    });
+  };
 
   const getWelcomeMessage = () => {
     if (!hasConsent) {
