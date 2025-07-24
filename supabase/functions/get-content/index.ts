@@ -212,35 +212,44 @@ async function getSfxContent(topic: string) {
       throw new Error('No sound effects available');
     }
 
-    // Filter by topic/name matching
-    const matchingFiles = files.filter(file => {
-      if (!file.name.endsWith('.mp3') && !file.name.endsWith('.wav')) return false;
-      const fileName = file.name.toLowerCase();
-      return fileName.includes(topic.toLowerCase()) || topic === 'any';
-    });
+    // Filter by topic/name matching - look for JSON metadata files
+    const matchingFiles = [];
+    
+    for (const file of files) {
+      if (file.name.endsWith('.json')) {
+        try {
+          const { data } = await supabase.storage
+            .from('content')
+            .download(`${folderPath}${file.name}`);
+          
+          if (data) {
+            const text = await data.text();
+            const sfxData = JSON.parse(text);
+            
+            // Check if SFX matches topic
+            const sfxText = (sfxData.name + ' ' + (sfxData.tags?.join(' ') || '') + ' ' + (sfxData.description || '')).toLowerCase();
+            if (sfxText.includes(topic.toLowerCase()) || topic === 'any') {
+              matchingFiles.push({
+                ...sfxData,
+                fileName: file.name
+              });
+            }
+          }
+        } catch (err) {
+          console.error(`Error reading SFX file ${file.name}:`, err);
+        }
+      }
+    }
 
     if (matchingFiles.length === 0) {
-      // Return any random SFX if no topic match
-      const audioFiles = files.filter(f => f.name.endsWith('.mp3') || f.name.endsWith('.wav'));
-      if (audioFiles.length > 0) {
-        const randomFile = audioFiles[Math.floor(Math.random() * audioFiles.length)];
-        return {
-          type: 'sfx',
-          name: randomFile.name,
-          path: `${folderPath}${randomFile.name}`,
-          url: supabase.storage.from('content').getPublicUrl(`${folderPath}${randomFile.name}`).data.publicUrl
-        };
-      }
       throw new Error(`No sound effects found for topic: ${topic}`);
     }
 
-    const selectedFile = matchingFiles[Math.floor(Math.random() * matchingFiles.length)];
+    const selectedSfx = matchingFiles[Math.floor(Math.random() * matchingFiles.length)];
     
     return {
       type: 'sfx',
-      name: selectedFile.name,
-      path: `${folderPath}${selectedFile.name}`,
-      url: supabase.storage.from('content').getPublicUrl(`${folderPath}${selectedFile.name}`).data.publicUrl
+      ...selectedSfx
     };
 
   } catch (error) {
