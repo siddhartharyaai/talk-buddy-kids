@@ -211,20 +211,13 @@ export const BuddyApp = () => {
   // Convert audio blob to base64 and transcribe
   const transcribeAudio = async (audioBlob: Blob, messageId: string) => {
     try {
-      console.log('🔄 Converting audio to base64...', { size: audioBlob.size, type: audioBlob.type });
+      console.log('🔄 Converting audio to base64...');
       
-      // Convert blob to base64 using FileReader for better compatibility
-      const base64Audio = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          // Remove the data URL prefix (e.g., "data:audio/webm;base64,")
-          const base64 = result.split(',')[1];
-          resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(audioBlob);
-      });
+      // Convert blob to base64
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+      const base64Audio = btoa(binaryString);
       
       console.log(`📤 Sending ${base64Audio.length} characters to transcribe-audio`);
       
@@ -250,9 +243,17 @@ export const BuddyApp = () => {
       ));
       
       if (!transcribedText || transcribedText.trim() === '') {
-        console.log('⚠️ Empty transcript - trying again');
+        toast({
+          title: "Empty transcript",
+          description: "Deepgram gave an empty transcript – try again?",
+          variant: "destructive"
+        });
       } else {
-        console.log('✅ Speech recognized:', transcribedText);
+        toast({
+          title: "Speech recognized! 🎯",
+          description: `"${transcribedText.slice(0, 50)}${transcribedText.length > 50 ? '...' : ''}"`
+        });
+        
         // Get AI response from Buddy
         await getBuddyResponse(transcribedText);
       }
@@ -267,15 +268,11 @@ export const BuddyApp = () => {
           : msg
       ));
       
-      console.error('❌ Transcription failed:', error);
-      // Only show toast for actual errors, not empty transcripts
-      if (!error.message.includes('Empty transcript')) {
-        toast({
-          title: "Transcription failed",
-          description: "Could not convert speech to text. Please try again.",
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "Transcription failed",
+        description: "Could not convert speech to text. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -325,7 +322,10 @@ export const BuddyApp = () => {
           : msg
       ));
       
-      console.log('✅ Buddy responded! Playing voice...');
+      toast({
+        title: "Buddy responded! 🎉",
+        description: "Your AI friend is ready to chat!"
+      });
       
       // Step 7.5: Call playVoice after Buddy reply
       await playVoice(aiResponse);
@@ -384,13 +384,20 @@ export const BuddyApp = () => {
     try {
       const stream = streamRef.current || await initializeMicrophone();
       
-      // Use the most compatible format for Deepgram
-      const mimeType = 'audio/webm';
+      // FIXED: Use WebM format which is widely supported and works well with Deepgram
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm') 
+        ? 'audio/webm'
+        : MediaRecorder.isTypeSupported('audio/mp4') 
+        ? 'audio/mp4'
+        : 'audio/wav';
       
       console.log(`🎤 Using audio format: ${mimeType}`);
       
       const mediaRecorder = new MediaRecorder(stream, { 
-        mimeType
+        mimeType,
+        audioBitsPerSecond: 16000 
       });
       
       audioChunksRef.current = [];
@@ -571,7 +578,13 @@ export const BuddyApp = () => {
     }
   };
 
-  // Removed auto TTS test to prevent audio conflicts
+  // Run TTS test on mount (only once) - Step 7.7 integration
+  useEffect(() => {
+    if (hasConsent && childProfile) {
+      // Auto-test TTS when profile is ready
+      testTTS();
+    }
+  }, [hasConsent, childProfile]);
 
   // playVoice helper function
   const playVoice = async (text: string) => {
@@ -618,8 +631,8 @@ export const BuddyApp = () => {
           bytes[i] = binaryString.charCodeAt(i);
         }
         
-        // FIXED: Create blob with correct MP3 audio type (TTS generates MP3)
-        const audioBlob = new Blob([bytes], { type: 'audio/mp3' });
+        // Create blob with explicit audio type
+        const audioBlob = new Blob([bytes], { type: 'audio/wav' });
         const audioUrl = URL.createObjectURL(audioBlob);
         
         console.log('🎵 Audio Blob created successfully, size:', audioBlob.size, 'bytes');
@@ -656,8 +669,10 @@ export const BuddyApp = () => {
             });
           }
           
-          setIsSpeaking(false);
-          console.log('✅ Buddy finished speaking!');
+          toast({
+            title: "✅ Done speaking!",
+            description: "What would you like to talk about next?",
+          });
         });
 
         audio.addEventListener('error', (e) => {
@@ -667,48 +682,75 @@ export const BuddyApp = () => {
           throw new Error(`Audio playback failed: ${audio.error?.message || 'Unknown error'}`);
         });
 
-        // Wait for user interaction if needed
+        // SURESHOT USER INTERACTION METHOD
         const attemptPlay = async () => {
           try {
             console.log('🎵 Attempting to play audio...');
-            await audio.play();
             setIsSpeaking(true);
+            await audio.play();
             console.log('✅ Audio playing successfully!');
+            
+            toast({
+              title: "🎵 Buddy is speaking!",
+              description: "Listen to your friendly AI companion!",
+            });
             
           } catch (playError) {
             console.error('❌ Play failed:', playError);
             
             if (playError.name === 'NotAllowedError') {
-              console.log('🔊 Requesting user interaction for audio');
+              setIsSpeaking(false);
               
               toast({
-                title: "🔊 Tap anywhere to enable audio",
-                description: "Buddy wants to speak to you!",
+                title: "🔊 Click to hear Buddy!",
+                description: "Browser needs your permission to play audio. Click anywhere!",
+                variant: "default"
               });
-
-              // Wait for user interaction
-              const userInteracted = () => {
-                audio.play()
-                  .then(() => {
-                    setIsSpeaking(true);
-                    console.log('✅ Audio enabled after interaction!');
-                  })
-                  .catch(err => {
-                    console.error('❌ Audio failed after interaction:', err);
-                    toast({
-                      title: "Audio Error", 
-                      description: "Cannot play audio even with user interaction",
-                      variant: "destructive"
-                    });
+              
+              // Enhanced user interaction handler
+              const enableAudio = async (event: Event) => {
+                console.log('👆 User interaction detected:', event.type);
+                try {
+                  setIsSpeaking(true);
+                  await audio.play();
+                  console.log('✅ Audio playing after user interaction!');
+                  
+                  toast({
+                    title: "🎵 Buddy is speaking!",
+                    description: "Audio enabled successfully!",
                   });
-                
-                // Cleanup
-                document.removeEventListener('click', userInteracted);
-                document.removeEventListener('touchstart', userInteracted);
+                  
+                  // Remove all listeners
+                  document.removeEventListener('click', enableAudio);
+                  document.removeEventListener('touchstart', enableAudio);
+                  document.removeEventListener('keydown', enableAudio);
+                  
+                } catch (retryError) {
+                  console.error('❌ Still failed after user interaction:', retryError);
+                  setIsSpeaking(false);
+                  URL.revokeObjectURL(audioUrl);
+                  
+                  toast({
+                    title: "Audio Error",
+                    description: "Cannot play audio even with user interaction",
+                    variant: "destructive"
+                  });
+                }
               };
               
-              document.addEventListener('click', userInteracted, { once: true });
-              document.addEventListener('touchstart', userInteracted, { once: true });
+              // Multiple interaction types
+              document.addEventListener('click', enableAudio, { once: true });
+              document.addEventListener('touchstart', enableAudio, { once: true });
+              document.addEventListener('keydown', enableAudio, { once: true });
+              
+              // Cleanup after 30 seconds
+              setTimeout(() => {
+                document.removeEventListener('click', enableAudio);
+                document.removeEventListener('touchstart', enableAudio);
+                document.removeEventListener('keydown', enableAudio);
+                URL.revokeObjectURL(audioUrl);
+                setIsSpeaking(false);
+              }, 30000);
               
             } else {
               throw playError;
@@ -716,7 +758,8 @@ export const BuddyApp = () => {
           }
         };
 
-        // FIXED: Remove audio.load() call that was causing issues
+        // Load and attempt to play
+        audio.load();
         await attemptPlay();
         
       } catch (blobError) {
@@ -790,7 +833,7 @@ export const BuddyApp = () => {
     }
   };
 
-  // Auto greeting when profile is loaded - ESSENTIAL for child engagement and audio trigger
+  // Auto greeting when profile is loaded
   useEffect(() => {
     if (childProfile && !hasGreeted) {
       // Small delay to ensure component is fully mounted
