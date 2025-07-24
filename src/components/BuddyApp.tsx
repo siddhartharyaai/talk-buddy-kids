@@ -23,6 +23,7 @@ import {
 import { populateContentLibrary, verifyContent } from '../utils/populateContent';
 import { uploadTestStory } from '../utils/uploadTestStory';
 import { testGetContent } from '../utils/testGetContent';
+import { testStorageAccess } from '../utils/testStorageAccess';
 import confetti from 'canvas-confetti';
 
 export interface ChatMessage {
@@ -1772,6 +1773,31 @@ export const BuddyApp = () => {
             title="Test Get Content"
           >
             🔍
+          </Button>
+          
+          {/* Test storage access */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              try {
+                toast({ title: "Testing storage access...", description: "Checking file download" });
+                const result = await testStorageAccess();
+                if (result.error) {
+                  toast({ title: "Storage test failed", description: String(result.error), variant: "destructive" });
+                } else {
+                  toast({ title: "Storage works!", description: `Found story: ${result.story?.title || 'Unknown'}` });
+                }
+                console.log('💾 Storage test result:', result);
+              } catch (error) {
+                console.error('❌ Storage test failed:', error);
+                toast({ title: "Storage test failed", description: error?.message || "Unknown error", variant: "destructive" });
+              }
+            }}
+            className="p-2 hover:bg-gray-100 rounded-full"
+            title="Test Storage Access"
+          >
+            💾
           </Button>
           
           {/* Test buttons for smoke tests */}
