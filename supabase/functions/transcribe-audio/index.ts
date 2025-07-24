@@ -23,18 +23,37 @@ serve(async (req) => {
 
     console.log(`📦 Received audio data: ${audio.length} characters`);
 
-    // Convert base64 to binary for Deepgram
-    const binary = Uint8Array.from(atob(audio), c => c.charCodeAt(0));
-    console.log(`🔄 Converted to binary: ${binary.length} bytes`);
+    // Robust base64 to binary conversion with error handling
+    let binary: Uint8Array;
+    try {
+      // Remove data URL prefix if present (data:audio/webm;base64,)
+      const cleanBase64 = audio.replace(/^data:audio\/[^;]+;base64,/, '');
+      
+      // Convert base64 to binary - this method is more robust
+      const binaryString = atob(cleanBase64);
+      binary = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        binary[i] = binaryString.charCodeAt(i);
+      }
+      console.log(`🔄 Converted to binary: ${binary.length} bytes`);
+    } catch (conversionError) {
+      console.error('❌ Base64 conversion failed:', conversionError);
+      throw new Error(`Invalid audio data format: ${conversionError.message}`);
+    }
 
-    // Call Deepgram API with Nova-3 for blazing fast performance
+    // Validate binary data size
+    if (binary.length < 100) {
+      throw new Error('Audio data too small - likely corrupted');
+    }
+
+    // Call Deepgram API with Nova-2 (more stable than Nova-3) and optimal settings
     const deepgramResponse = await fetch(
-      "https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&language=en&punctuate=false&diarize=false&utterances=false",
+      "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&language=en&punctuate=true&diarize=false&utterances=false&encoding=linear16&sample_rate=16000",
       {
         method: "POST",
         headers: {
           Authorization: `Token ${Deno.env.get("DEEPGRAM_API_KEY")}`,
-          "Content-Type": "audio/wav"
+          "Content-Type": "application/octet-stream"
         },
         body: binary
       }

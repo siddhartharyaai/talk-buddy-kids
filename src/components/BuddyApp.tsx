@@ -33,6 +33,7 @@ export const BuddyApp = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const lastChunkProcessed = useRef<number>(0);
 
   console.log('🔍 State initialized, running useEffect...');
 
@@ -200,39 +201,11 @@ export const BuddyApp = () => {
   };
 
   
-  // Real-time audio chunk processing for blazing fast STT
+  // Real-time audio processing disabled to prevent API overload
   const processAudioChunk = async (audioBlob: Blob) => {
-    if (!childProfile) return;
-    
-    try {
-      // Convert to base64 immediately for ultra-fast processing
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
-      const base64Audio = btoa(binaryString);
-      
-      // Skip tiny chunks that won't have meaningful audio
-      if (base64Audio.length < 1000) return;
-      
-      console.log('⚡ REAL-TIME: Processing audio chunk...', base64Audio.length, 'chars');
-      
-      // Ultra-fast STT call
-      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-        body: { audio: base64Audio }
-      });
-      
-      if (error || !data?.text?.trim()) return;
-      
-      // If we get a meaningful transcription, process immediately
-      const text = data.text.trim();
-      if (text.length > 3) { // Only process meaningful text
-        console.log('⚡ REAL-TIME STT:', text);
-        await getBuddyResponse(text);
-      }
-      
-    } catch (error) {
-      console.error('❌ Real-time chunk processing failed:', error);
-    }
+    console.log('⏭️ Real-time processing disabled - will process on stop');
+    // Disabled to prevent API rate limiting and errors
+    return;
   };
 
   // Convert audio blob to base64 and transcribe
@@ -248,10 +221,28 @@ export const BuddyApp = () => {
       
       console.log(`📤 Sending ${base64Audio.length} characters to transcribe-audio`);
       
-      // Call Supabase edge function
-      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-        body: { audio: base64Audio }
-      });
+    // Call Supabase edge function with retry logic for network resilience
+      let data, error;
+      let retries = 2;
+      
+      while (retries > 0) {
+        try {
+          const result = await supabase.functions.invoke('transcribe-audio', {
+            body: { audio: base64Audio }
+          });
+          data = result.data;
+          error = result.error;
+          break;
+        } catch (networkError) {
+          retries--;
+          if (retries === 0) {
+            error = networkError;
+          } else {
+            console.log(`🔄 Network retry ${3 - retries}/2`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
       
       if (error) {
         console.error('❌ Transcription error:', error);
@@ -411,18 +402,16 @@ export const BuddyApp = () => {
     try {
       const stream = streamRef.current || await initializeMicrophone();
       
-      // FIXED: Use audio/wav format for better Deepgram compatibility
-      const options = {
-        mimeType: 'audio/wav',
-        audioBitsPerSecond: 16000  // Standard bitrate for better quality
-      };
-      
-      // Fallback options for different browsers
-      const mimeType = MediaRecorder.isTypeSupported('audio/wav') 
-        ? 'audio/wav'
+      // FIXED: Use WebM format which is widely supported and works well with Deepgram
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+        ? 'audio/webm;codecs=opus'
         : MediaRecorder.isTypeSupported('audio/webm') 
         ? 'audio/webm'
-        : 'audio/mp4';
+        : MediaRecorder.isTypeSupported('audio/mp4') 
+        ? 'audio/mp4'
+        : 'audio/wav';
+      
+      console.log(`🎤 Using audio format: ${mimeType}`);
       
       const mediaRecorder = new MediaRecorder(stream, { 
         mimeType,
