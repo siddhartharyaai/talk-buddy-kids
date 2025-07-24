@@ -5,6 +5,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to convert large arrays to base64 without stack overflow
+function convertToBase64Chunked(uint8Array: Uint8Array): string {
+  const CHUNK_SIZE = 32768; // 32KB chunks
+  let result = '';
+  
+  for (let i = 0; i < uint8Array.length; i += CHUNK_SIZE) {
+    const chunk = uint8Array.slice(i, i + CHUNK_SIZE);
+    result += String.fromCharCode(...chunk);
+  }
+  
+  return btoa(result);
+}
+
 serve(async req => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -64,8 +77,8 @@ serve(async req => {
       throw new Error('No audio content received from Deepgram TTS');
     }
 
-    // Convert to base64
-    const audioContent = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    // Convert to base64 safely (chunked to avoid stack overflow)
+    const audioContent = convertToBase64Chunked(new Uint8Array(audioBuffer));
     
     console.log('✅ Raw audio content length:', audioContent.length);
     console.log('✅ Audio content preview (first 100 chars):', audioContent.substring(0, 100));
