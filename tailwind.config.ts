@@ -105,6 +105,17 @@ export default {
 						height: '0'
 					}
 				},
+				// Step 6: UI & Dopamine Polish animations
+				'bubble-fade-slide': {
+					'0%': {
+						opacity: '0',
+						transform: 'translateY(20px) scale(0.95)'
+					},
+					'100%': {
+						opacity: '1',
+						transform: 'translateY(0) scale(1)'
+					}
+				},
 				'pulse-ring': {
 					'0%': {
 						transform: 'scale(1)',
@@ -113,6 +124,16 @@ export default {
 					'100%': {
 						transform: 'scale(1.5)',
 						opacity: '0'
+					}
+				},
+				'mic-pulse': {
+					'0%, 100%': {
+						transform: 'scale(1)',
+						boxShadow: '0 0 0 0 hsl(var(--accent) / 0.4)'
+					},
+					'50%': {
+						transform: 'scale(1.05)',
+						boxShadow: '0 0 0 15px hsl(var(--accent) / 0)'
 					}
 				},
 				'bounce-gentle': {
@@ -134,7 +155,10 @@ export default {
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
+				// Step 6: UI & Dopamine Polish animations
+				'bubble-fade-slide': 'bubble-fade-slide 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
 				'pulse-ring': 'pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite',
+				'mic-pulse': 'mic-pulse 2s ease-in-out infinite',
 				'bounce-gentle': 'bounce-gentle 2s ease-in-out infinite',
 				'wiggle': 'wiggle 0.5s ease-in-out'
 			}

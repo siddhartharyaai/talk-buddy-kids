@@ -249,10 +249,13 @@ export const BuddyApp = () => {
           variant: "destructive"
         });
       } else {
-        toast({
-          title: "Speech recognized! 🎯",
-          description: `"${transcribedText.slice(0, 50)}${transcribedText.length > 50 ? '...' : ''}"`
-        });
+        // Step 6: Hide dev toasts behind import.meta.env.DEV
+        if (import.meta.env.DEV) {
+          toast({
+            title: "Speech recognized! 🎯",
+            description: `"${transcribedText.slice(0, 50)}${transcribedText.length > 50 ? '...' : ''}"`
+          });
+        }
         
         // Get AI response from Buddy
         await getBuddyResponse(transcribedText);
@@ -322,10 +325,13 @@ export const BuddyApp = () => {
           : msg
       ));
       
-      toast({
-        title: "Buddy responded! 🎉",
-        description: "Your AI friend is ready to chat!"
-      });
+      // Step 6: Hide dev toasts behind import.meta.env.DEV
+      if (import.meta.env.DEV) {
+        toast({
+          title: "Buddy responded! 🎉",
+          description: "Your AI friend is ready to chat!"
+        });
+      }
       
       // Step 7.5: Call playVoice after Buddy reply
       await playVoice(aiResponse);
@@ -722,7 +728,8 @@ export const BuddyApp = () => {
           setIsSpeaking(false);
           URL.revokeObjectURL(audioUrl);
           
-          if (childProfile && childProfile.ageYears <= 7) {
+          if (childProfile && childProfile.ageYears <= 5) {
+            // Step 6: Confetti 🎉 burst for ageYears ≤ 5
             confetti({
               particleCount: 50,
               spread: 70,
@@ -750,11 +757,13 @@ export const BuddyApp = () => {
         
         audio.play().then(() => {
           console.log('✅ Audio playing successfully!');
-          // Success toast on play start (Step 4 requirement)
-          toast({
-            title: "🔊 Buddy speaking",
-            description: "Audio playback started successfully",
-          });
+          // Step 6: Hide dev toasts behind import.meta.env.DEV
+          if (import.meta.env.DEV) {
+            toast({
+              title: "🔊 Buddy speaking",
+              description: "Audio playback started successfully",
+            });
+          }
         }).catch((playError) => {
           console.error('❌ Play failed:', playError);
           
@@ -1060,18 +1069,17 @@ export const BuddyApp = () => {
             </div>
           </Card>
           
-           {/* Conversation Messages with animations */}
+           {/* Conversation Messages with Step 6 animations */}
           {messages.length > 0 ? (
             messages.map((message, index) => (
               <Card 
                 key={`${message.id}-${index}`} 
                 className={`
-                  p-4 animate-fade-in
+                  p-4 animate-bubble-fade-slide
                   ${message.type === 'user' 
                     ? 'bg-white border-gray-200 ml-8' 
                     : 'bg-gradient-to-r from-blue-100 to-purple-100 border-blue-200 mr-8'
                   }
-                  ${message.type === 'buddy' ? 'animate-scale-in' : ''}
                 `}
                 style={{ animationDelay: `${index * 100}ms` }}
               >
@@ -1115,12 +1123,12 @@ export const BuddyApp = () => {
       {/* FIXED: Bottom Controls now fixed at bottom of viewport */}
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-white/90 backdrop-blur-sm border-t border-blue-200 z-10">
         <div className="max-w-2xl mx-auto flex justify-center">
-          {/* Big Mic Button with animations */}
+          {/* Big Mic Button with Step 6 pulse animation while recording */}
           <Button
             className={`
               w-20 h-20 rounded-full shadow-lg transition-all duration-200 
               ${isRecording 
-                ? 'bg-red-500 hover:bg-red-600 scale-110 shadow-red-200 animate-pulse' 
+                ? 'bg-red-500 hover:bg-red-600 scale-110 shadow-red-200 animate-mic-pulse' 
                 : isSpeaking
                 ? 'bg-green-500 hover:bg-green-600 scale-105 shadow-green-200 animate-pulse'
                 : 'bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-blue-200 hover-scale'
