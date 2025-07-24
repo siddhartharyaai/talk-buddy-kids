@@ -318,10 +318,7 @@ export const BuddyApp = () => {
           : msg
       ));
       
-      toast({
-        title: "Buddy responded! 🎉",
-        description: "Your AI friend is ready to chat!"
-      });
+      console.log('✅ Buddy responded! Playing voice...');
       
       // Step 7.5: Call playVoice after Buddy reply
       await playVoice(aiResponse);
@@ -813,7 +810,17 @@ export const BuddyApp = () => {
     }
   };
 
-  // Removed auto greeting to prevent audio conflicts
+  // Auto greeting when profile is loaded - ESSENTIAL for child engagement and audio trigger
+  useEffect(() => {
+    if (childProfile && !hasGreeted) {
+      // Small delay to ensure component is fully mounted
+      const timer = setTimeout(() => {
+        sendAutoGreeting();
+      }, 1500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [childProfile, hasGreeted]);
 
   const getWelcomeMessage = () => {
     if (!hasConsent) {
