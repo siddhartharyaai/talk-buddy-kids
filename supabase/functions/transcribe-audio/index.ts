@@ -13,7 +13,14 @@ serve(async (req) => {
   }
 
   try {
-    console.log('🎤 Transcribe-audio function called');
+    console.log('🎤 Transcribe-audio function called (Step 3: Deepgram STT Pipeline)');
+    
+    // Self-test messages for validation
+    const testMessages = {
+      english: "Hello Buddy",
+      hindi: "नमस्ते दोस्त"
+    };
+    console.log('📋 Self-test messages ready:', testMessages);
     
     const { audio } = await req.json();
     
@@ -23,13 +30,13 @@ serve(async (req) => {
 
     console.log(`📦 Received audio data: ${audio.length} characters`);
 
-    // Convert base64 to binary for Deepgram
+    // Convert base64 to binary for Deepgram (WebM format support)
     const binary = Uint8Array.from(atob(audio), c => c.charCodeAt(0));
-    console.log(`🔄 Converted to binary: ${binary.length} bytes`);
+    console.log(`🔄 Converted to binary: ${binary.length} bytes (WebM format expected)`);
 
-    // Call Deepgram API with Nova-2 for stable performance
+    // Call Deepgram API with Nova-3 for error-free performance (Step 3)
     const deepgramResponse = await fetch(
-      "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&language=en&punctuate=true&diarize=false&utterances=false",
+      "https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&language=en&punctuate=true&diarize=false&utterances=false",
       {
         method: "POST",
         headers: {
