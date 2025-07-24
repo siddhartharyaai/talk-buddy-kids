@@ -1,10 +1,16 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
 
 interface ChildProfile {
   name: string;
@@ -64,6 +70,40 @@ serve(async (req) => {
     const intent = classifyIntent(message);
     console.log(`🎯 Intent classified: "${intent}" for message: "${message}"`);
 
+    // CONTENT SWITCHBOARD: Fetch actual content when story requested
+    let contentFromLibrary = null;
+    if (intent === "story") {
+      try {
+        console.log('📚 Story requested - fetching from content library...');
+        
+        // Extract topic from message (animals, nature, etc.)
+        const topicMatch = message.match(/about\s+(\w+)/i);
+        const requestedTopic = topicMatch ? topicMatch[1] : 'animals';
+        
+        // Determine language preference
+        const preferredLang = childProfile.language.includes('hindi') ? 'hi' : 'en';
+        
+        // Call get-content function to fetch story
+        const { data: contentResult, error: contentError } = await supabase.functions.invoke('get-content', {
+          body: {
+            type: 'story',
+            language: preferredLang,
+            age: childProfile.ageYears,
+            topic: requestedTopic
+          }
+        });
+        
+        if (contentError) {
+          console.error('❌ Content fetch error:', contentError);
+        } else if (contentResult?.content) {
+          contentFromLibrary = contentResult.content;
+          console.log('✅ Story fetched from library:', contentFromLibrary.title);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching content:', error);
+      }
+    }
+
     // Generate safe fallback topics based on interests
     const safeTopics = childProfile.interests.length > 0 
       ? childProfile.interests.slice(0, 2).join(' or ')
@@ -99,6 +139,15 @@ Goals: ${childProfile.learningGoals.join(', ') || 'having fun learning'}
 Energy: ${childProfile.energyLevel}
 ${cultureHints}
 ${memoryContext}
+
+${contentFromLibrary ? `
+STORY FROM LIBRARY (USE THIS EXACT CONTENT):
+Title: ${contentFromLibrary.title}
+Content: ${contentFromLibrary.scenes ? contentFromLibrary.scenes[0] : contentFromLibrary.body || contentFromLibrary.content}
+
+IMPORTANT: When story requested, use the above story content. Read it naturally as if telling the story directly.
+` : ''}
+
 CONVERSATION RULES
 - If message contains "I just opened the app" → Give warm welcome greeting with name
 - For all other messages → respond naturally WITHOUT name greetings  
@@ -108,7 +157,7 @@ CONVERSATION RULES
 INTENT: ${intent}
 LENGTH GUIDE
 • "question" → concise answer ≤ 40 words.
-• "story" → 250-350 words with beginning–middle–end.
+• "story" → ${contentFromLibrary ? 'Read the story from library above' : '250-350 words with beginning–middle–end'}.
 • "song" → 8-12 lines, rhyming if possible.
 • "chat" → 1-2 friendly sentences.
 Follow the guide exactly.
