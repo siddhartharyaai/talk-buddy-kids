@@ -12,7 +12,7 @@ export interface ChildProfile {
   name: string;
   ageGroup: '3-5' | '6-8' | '9-12';
   ageYears: number;
-  gender: 'boy' | 'girl' | 'other';
+  gender: 'boy' | 'girl' | 'non-binary' | 'other';
   interests: string[];
   learningGoals: string[];
   energyLevel: 'low' | 'medium' | 'high';
@@ -32,8 +32,20 @@ export const ParentSettingsModal = ({
   onSave, 
   initialProfile 
 }: ParentSettingsModalProps) => {
-  const [profile, setProfile] = useState<ChildProfile>(
-    initialProfile || {
+  const [profile, setProfile] = useState<ChildProfile>(() => {
+    if (initialProfile) return initialProfile;
+    
+    // Try to load from localStorage
+    const saved = localStorage.getItem('buddyChildProfile');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.warn('Failed to parse saved profile');
+      }
+    }
+    
+    return {
       name: '',
       ageGroup: '6-8',
       ageYears: 7,
@@ -42,11 +54,17 @@ export const ParentSettingsModal = ({
       learningGoals: [],
       energyLevel: 'medium',
       language: ['english']
-    }
-  );
+    };
+  });
 
   const handleSave = () => {
     if (profile.name.trim() && profile.language.length > 0) {
+      // Store in localStorage
+      localStorage.setItem('buddyChildProfile', JSON.stringify(profile));
+      
+      // Emit profile updated event
+      window.dispatchEvent(new CustomEvent('profile:updated', { detail: profile }));
+      
       onSave(profile);
       onClose();
     }
@@ -156,6 +174,7 @@ export const ParentSettingsModal = ({
                   <SelectContent>
                     <SelectItem value="boy">Boy</SelectItem>
                     <SelectItem value="girl">Girl</SelectItem>
+                    <SelectItem value="non-binary">Non-binary</SelectItem>
                     <SelectItem value="other">Other/Prefer not to say</SelectItem>
                   </SelectContent>
                 </Select>
@@ -310,9 +329,9 @@ export const ParentSettingsModal = ({
                         }
                       }}
                     />
-                    <Label htmlFor="lang-english" className="text-sm cursor-pointer">
-                      🇺🇸 English
-                    </Label>
+                     <Label htmlFor="lang-english" className="text-sm cursor-pointer">
+                       🇺🇸 US English
+                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox
