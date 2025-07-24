@@ -44,3 +44,12 @@ verify_jwt = false
 
 [functions.get-content]
 verify_jwt = false
+
+[functions.import-sfx]
+verify_jwt = false
+
+[functions.import-rhyme]
+verify_jwt = false
+
+[functions.bulk-import]
+verify_jwt = false
