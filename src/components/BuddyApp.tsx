@@ -874,17 +874,53 @@ export const BuddyApp = () => {
     setHasGreeted(true);
   };
 
-  // Enthusiastic auto-greeting when child logs in
+  // Step 5: Random Greeting Logic with 15-entry array and duplicate prevention
   const playWelcomeGreeting = async () => {
     if (!childProfile || hasGreeted) return;
     
+    // 15-entry greeting array for variety (Step 5 requirement)
     const greetings = [
-      `Hi ${childProfile.name}! 🌟 I'm Buddy, your super fun AI friend! I can help you learn about animals, tell amazing stories, teach you cool science facts, play word games, and answer any questions you have! What would you like to explore first?`,
-      `Hello there, ${childProfile.name}! 🚀 Welcome to our amazing adventure together! I'm Buddy and I love chatting with curious kids like you! I can tell you about space, animals, help with math, create fun stories, and so much more! What sounds exciting to you today?`,
-      `Hey ${childProfile.name}! 🎉 I'm Buddy and I'm SO excited to be your learning buddy! We can discover incredible things about nature, practice reading together, solve fun puzzles, learn about different countries, or just have a great chat! What adventure should we start with?`
+      `Hi ${childProfile.name}! 🌟 I'm Buddy, your super fun AI friend! What amazing adventure should we start today?`,
+      `Hello there, ${childProfile.name}! 🚀 Welcome to our incredible learning journey together! What sounds exciting to you?`,
+      `Hey ${childProfile.name}! 🎉 I'm SO excited to be your learning buddy! What would you like to discover first?`,
+      `Wow, ${childProfile.name}! 🦋 It's fantastic to see you! What fascinating topic is on your mind today?`,
+      `Hi friend ${childProfile.name}! 🌈 I'm Buddy and I love exploring with curious kids like you! What shall we learn about?`,
+      `Hello brilliant ${childProfile.name}! ⭐ Ready for some amazing discoveries together? What interests you most?`,
+      `Hey there, ${childProfile.name}! 🎈 I'm Buddy, your AI learning companion! What cool things want to explore?`,
+      `Hi superstar ${childProfile.name}! 🌟 I'm here to have fun and learn with you! What adventure calls to you today?`,
+      `Hello amazing ${childProfile.name}! 🦖 I'm Buddy and I can't wait to discover incredible things with you! What's first?`,
+      `Hey wonderful ${childProfile.name}! 🎨 I'm your friendly AI buddy! What exciting topic should we dive into?`,
+      `Hi there, ${childProfile.name}! 🎪 I'm Buddy, ready for fun learning adventures! What would you like to explore?`,
+      `Hello fantastic ${childProfile.name}! 🌺 I'm here to chat, learn, and have amazing times together! What interests you?`,
+      `Hey creative ${childProfile.name}! 🎭 I'm Buddy, your AI friend for incredible discoveries! What shall we start with?`,
+      `Hi curious ${childProfile.name}! 🔍 I'm Buddy and I love answering questions and exploring! What's on your mind?`,
+      `Hello brilliant ${childProfile.name}! 💫 I'm your AI learning buddy, ready for awesome adventures! What sounds fun?`
     ];
     
-    const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
+    // Get last greeting hashes to prevent duplicates (Step 5 requirement)
+    const lastGreetingHashes = JSON.parse(localStorage.getItem('buddyLastGreetingHashes') || '[]');
+    
+    // Filter out recently used greetings
+    const availableGreetings = greetings.filter((greeting, index) => {
+      const greetingHash = btoa(greeting).slice(0, 10); // Simple hash
+      return !lastGreetingHashes.includes(greetingHash);
+    });
+    
+    // If all greetings used recently, reset the history
+    const finalGreetings = availableGreetings.length > 0 ? availableGreetings : greetings;
+    const randomGreeting = finalGreetings[Math.floor(Math.random() * finalGreetings.length)];
+    
+    // Store greeting hash to prevent duplicates
+    const newHash = btoa(randomGreeting).slice(0, 10);
+    const updatedHashes = [newHash, ...lastGreetingHashes].slice(0, 3); // Keep last 3
+    localStorage.setItem('buddyLastGreetingHashes', JSON.stringify(updatedHashes));
+    
+    console.log('🎯 Step 5 Greeting Selected:', {
+      totalGreetings: greetings.length,
+      availableCount: finalGreetings.length,
+      selectedHash: newHash,
+      recentHashes: updatedHashes
+    });
     
     try {
       setHasGreeted(true);
