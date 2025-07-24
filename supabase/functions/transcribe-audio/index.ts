@@ -34,7 +34,7 @@ serve(async (req) => {
         method: "POST",
         headers: {
           Authorization: `Token ${Deno.env.get("DEEPGRAM_API_KEY")}`,
-          "Content-Type": "audio/webm"
+          "Content-Type": "audio/wav"
         },
         body: binary
       }
