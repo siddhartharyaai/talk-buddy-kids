@@ -657,7 +657,7 @@ export const BuddyApp = () => {
     }
   };
 
-  // playVoice helper function - FIXED for Deepgram MP3 format
+  // playVoice helper function - Step 4: Deepgram TTS Pipeline (MP3, no autoplay issues)
   const playVoice = async (text: string) => {
     try {
       if (!childProfile) {
@@ -705,15 +705,15 @@ export const BuddyApp = () => {
       // Create audio element
       const audio = new Audio(audioUrl);
       
-      // Set playback rate based on age
+      // Set playback rate based on age (Step 4 requirement)
       const getPlaybackRate = (ageYears: number) => {
-        if (ageYears <= 5) return 0.8;
-        if (ageYears <= 8) return 0.9;
-        return 1.0;
+        if (ageYears <= 5) return 0.8;  // Slower for younger kids
+        if (ageYears <= 8) return 0.9;  // Moderate for middle
+        return 1.0;                     // Normal for older kids
       };
       
       audio.playbackRate = getPlaybackRate(childProfile.ageYears);
-      console.log('🎛️ Playback rate set to:', audio.playbackRate);
+      console.log(`🎛️ Playback rate set to: ${audio.playbackRate} for age ${childProfile.ageYears}`);
 
       // Promise-based audio playback
       return new Promise<void>((resolve, reject) => {
@@ -750,9 +750,10 @@ export const BuddyApp = () => {
         
         audio.play().then(() => {
           console.log('✅ Audio playing successfully!');
+          // Success toast on play start (Step 4 requirement)
           toast({
-            title: "🎵 Buddy is speaking!",
-            description: "Listen to your friendly AI companion!",
+            title: "🔊 Buddy speaking",
+            description: "Audio playback started successfully",
           });
         }).catch((playError) => {
           console.error('❌ Play failed:', playError);

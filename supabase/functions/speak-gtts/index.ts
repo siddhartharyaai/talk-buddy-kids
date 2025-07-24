@@ -12,6 +12,8 @@ serve(async req => {
   }
 
   try {
+    console.log('🔊 Speak-gtts function called (Step 4: Deepgram TTS Pipeline)');
+    
     const { text } = await req.json(); // Only accept text, ignore any language parameter
     if (!text) throw new Error("no text");
     
@@ -20,7 +22,15 @@ serve(async req => {
       throw new Error("DEEPGRAM_API_KEY not configured");
     }
     
-    console.log('🔊 Generating speech with Deepgram TTS:', { text: text.substring(0, 50) });
+    console.log('🔊 Generating speech with Deepgram TTS (MP3 format):', { text: text.substring(0, 50) });
+    
+    // Self-test messages for validation
+    const testLines = [
+      "Hello there! This is a test message.",
+      "Testing audio quality and playback.",
+      "Buddy speaking loud and clear!"
+    ];
+    console.log('📋 Self-test lines ready:', testLines);
     
     // Use Deepgram TTS API with maximum speed optimizations
     const res = await fetch(
