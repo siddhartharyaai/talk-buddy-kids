@@ -243,17 +243,9 @@ export const BuddyApp = () => {
       ));
       
       if (!transcribedText || transcribedText.trim() === '') {
-        toast({
-          title: "Empty transcript",
-          description: "Deepgram gave an empty transcript – try again?",
-          variant: "destructive"
-        });
+        console.log('⚠️ Empty transcript - trying again');
       } else {
-        toast({
-          title: "Speech recognized! 🎯",
-          description: `"${transcribedText.slice(0, 50)}${transcribedText.length > 50 ? '...' : ''}"`
-        });
-        
+        console.log('✅ Speech recognized:', transcribedText);
         // Get AI response from Buddy
         await getBuddyResponse(transcribedText);
       }
@@ -268,11 +260,15 @@ export const BuddyApp = () => {
           : msg
       ));
       
-      toast({
-        title: "Transcription failed",
-        description: "Could not convert speech to text. Please try again.",
-        variant: "destructive"
-      });
+      console.error('❌ Transcription failed:', error);
+      // Only show toast for actual errors, not empty transcripts
+      if (!error.message.includes('Empty transcript')) {
+        toast({
+          title: "Transcription failed",
+          description: "Could not convert speech to text. Please try again.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -578,13 +574,7 @@ export const BuddyApp = () => {
     }
   };
 
-  // Run TTS test on mount (only once) - Step 7.7 integration
-  useEffect(() => {
-    if (hasConsent && childProfile) {
-      // Auto-test TTS when profile is ready
-      testTTS();
-    }
-  }, [hasConsent, childProfile]);
+  // Removed auto TTS test to prevent audio conflicts
 
   // playVoice helper function
   const playVoice = async (text: string) => {
@@ -669,10 +659,8 @@ export const BuddyApp = () => {
             });
           }
           
-          toast({
-            title: "✅ Done speaking!",
-            description: "What would you like to talk about next?",
-          });
+          setIsSpeaking(false);
+          console.log('✅ Buddy finished speaking!');
         });
 
         audio.addEventListener('error', (e) => {
@@ -690,10 +678,8 @@ export const BuddyApp = () => {
             await audio.play();
             console.log('✅ Audio playing successfully!');
             
-            toast({
-              title: "🎵 Buddy is speaking!",
-              description: "Listen to your friendly AI companion!",
-            });
+            setIsSpeaking(true);
+            console.log('🎵 Buddy is speaking!');
             
           } catch (playError) {
             console.error('❌ Play failed:', playError);
@@ -701,11 +687,7 @@ export const BuddyApp = () => {
             if (playError.name === 'NotAllowedError') {
               setIsSpeaking(false);
               
-              toast({
-                title: "🔊 Click to hear Buddy!",
-                description: "Browser needs your permission to play audio. Click anywhere!",
-                variant: "default"
-              });
+              console.log('🔊 User needs to click to play audio');
               
               // Enhanced user interaction handler
               const enableAudio = async (event: Event) => {
@@ -715,10 +697,8 @@ export const BuddyApp = () => {
                   await audio.play();
                   console.log('✅ Audio playing after user interaction!');
                   
-                  toast({
-                    title: "🎵 Buddy is speaking!",
-                    description: "Audio enabled successfully!",
-                  });
+                  setIsSpeaking(true);
+                  console.log('✅ Audio playing after user interaction!');
                   
                   // Remove all listeners
                   document.removeEventListener('click', enableAudio);
@@ -833,17 +813,7 @@ export const BuddyApp = () => {
     }
   };
 
-  // Auto greeting when profile is loaded
-  useEffect(() => {
-    if (childProfile && !hasGreeted) {
-      // Small delay to ensure component is fully mounted
-      const timer = setTimeout(() => {
-        sendAutoGreeting();
-      }, 1500);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [childProfile, hasGreeted]);
+  // Removed auto greeting to prevent audio conflicts
 
   const getWelcomeMessage = () => {
     if (!hasConsent) {
