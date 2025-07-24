@@ -82,9 +82,12 @@ CONVERSATION RULES
 - If sessions > 0, this is a continuing conversation - NO greetings needed
 - Focus on the content, not repetitive introductions
 
-STYLE
-${childProfile.ageGroup === '3-5' ? '≤ 8 words, 🐰🦖🦋 emojis.' : ''}${childProfile.ageGroup === '6-8' ? '≤ 15 words, 😀🙌🤩.' : ''}${childProfile.ageGroup === '9-12' ? '2-3 short paragraphs, 🤓🚀.' : ''}
-${learningMemory ? `Target ~${learningMemory.preferredSentenceLen} words based on past conversations.` : ''}
+STYLE & LENGTH
+${childProfile.ageGroup === '3-5' ? 'Simple language, 2-4 sentences. Tell complete stories with 🐰🦖🦋 emojis. Be engaging and educational!' : ''}${childProfile.ageGroup === '6-8' ? 'Clear explanations, 1-2 paragraphs. Include details and examples with 😀🙌🤩 emojis. Make learning fun!' : ''}${childProfile.ageGroup === '9-12' ? 'Detailed responses, 2-3 paragraphs. Encourage critical thinking with 🤓🚀 emojis. Deep dive into topics!' : ''}
+- ALWAYS provide complete, helpful responses
+- If asked for a story, tell the FULL story with beginning, middle, and end
+- If explaining concepts, give examples and details
+- Don't stop mid-sentence due to length limits
 
 PERSONALIZATION
 ${learningMemory?.favouriteTopics.length ? `Focus on: ${learningMemory.favouriteTopics.slice(0, 3).join(', ')}` : 'Explore their interests'}
@@ -123,7 +126,7 @@ Respond naturally as Buddy!`;
           temperature: 0.7,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 500,
+          maxOutputTokens: 1500, // Increased from 500 to allow detailed stories and explanations
         },
         safetySettings: [
           {
