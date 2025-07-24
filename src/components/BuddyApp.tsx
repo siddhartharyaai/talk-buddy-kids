@@ -6,6 +6,19 @@ import { ConsentBanner } from './ConsentBanner';
 import { ParentSettingsModal, ChildProfile } from './ParentSettingsModal';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { 
+  minsUsedToday, 
+  shouldBreak, 
+  isBedtime, 
+  hasExceededDailyLimit,
+  updateTelemetry,
+  markBreakTime,
+  getBreakMessage,
+  getDailyLimitMessage,
+  getBedtimeMessage,
+  getDefaultTimezone,
+  initializeDailyTelemetry
+} from '../utils/usageTimers';
 import confetti from 'canvas-confetti';
 
 export interface ChatMessage {
@@ -26,6 +39,24 @@ export interface LearningMemory {
   preferredSentenceLen?: number;            // rolling average
   lastActive: number;
   transcripts: Array<{content: string, timestamp: number, type: 'user' | 'buddy'}>;
+}
+
+// Health-aware usage rules interface
+export interface UsageRules {
+  timezone: string;
+  city?: string;
+  dailyLimitMin: number;
+  breakIntervalMin: number;
+  bedtimeStart: string; // "HH:MM"
+  bedtimeEnd: string;   // "HH:MM"
+}
+
+export interface DailyTelemetry {
+  date: string;
+  secondsSpoken: number;
+  sessionsCount: number;
+  lastBreakTime: number;
+  lastUsageCheck: number;
 }
 
 export const BuddyApp = () => {
@@ -361,12 +392,74 @@ export const BuddyApp = () => {
       audio.playbackRate = getPlaybackRate(childProfile.ageYears);
       console.log(`🎛️ Playback rate set to: ${audio.playbackRate} for age ${childProfile.ageYears}`);
 
-      // Promise-based audio playback
+      // Promise-based audio playback with health checks
       return new Promise<void>((resolve, reject) => {
-        audio.addEventListener('ended', () => {
+        const audioStartTime = Date.now();
+        
+        audio.addEventListener('ended', async () => {
           console.log('✅ Audio playback completed');
           setIsSpeaking(false);
           URL.revokeObjectURL(audioUrl);
+          
+          // HEALTH GUARDRAILS: Update telemetry and perform checks
+          const audioEndTime = Date.now();
+          const speechDurationSeconds = Math.round((audioEndTime - audioStartTime) / 1000);
+          
+          try {
+            // Update usage telemetry
+            const currentTelemetry = childProfile.daily_telemetry || initializeDailyTelemetry(childProfile.usage_rules?.timezone || getDefaultTimezone());
+            const updatedTelemetry = updateTelemetry(currentTelemetry, speechDurationSeconds, childProfile.usage_rules?.timezone || getDefaultTimezone());
+            
+            // Save updated telemetry to database
+            await supabase
+              .from('child_profiles')
+              .update({ daily_telemetry: updatedTelemetry as any })
+              .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+            
+            const usageRules = childProfile.usage_rules || {
+              timezone: getDefaultTimezone(),
+              dailyLimitMin: 20,
+              breakIntervalMin: 10,
+              bedtimeStart: "21:00",
+              bedtimeEnd: "06:30"
+            };
+            
+            // Check health conditions
+            if (isBedtime(usageRules)) {
+              console.log('🌙 Bedtime detected - playing goodnight message');
+              const bedtimeMsg = getBedtimeMessage(childProfile.name);
+              // Play bedtime message and lock until morning
+              setTimeout(() => {
+                playVoice(bedtimeMsg);
+                // TODO: Lock mic until bedtimeEnd
+              }, 1000);
+            } else if (hasExceededDailyLimit(updatedTelemetry, usageRules, usageRules.timezone)) {
+              console.log('⏰ Daily limit exceeded - playing limit message');
+              const limitMsg = getDailyLimitMessage(childProfile.name);
+              setTimeout(() => {
+                playVoice(limitMsg);
+                // TODO: Lock mic for rest of day
+              }, 1000);
+            } else if (shouldBreak(updatedTelemetry, usageRules, usageRules.timezone)) {
+              console.log('🧘‍♀️ Break time - encouraging healthy habits');
+              const breakMsg = getBreakMessage(childProfile.name);
+              const markedTelemetry = markBreakTime(updatedTelemetry);
+              
+              // Update break time
+              await supabase
+                .from('child_profiles')
+                .update({ daily_telemetry: markedTelemetry as any })
+                .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+              
+              setTimeout(() => {
+                playVoice(breakMsg);
+                // TODO: Pause mic for 30 seconds
+              }, 1000);
+            }
+            
+          } catch (error) {
+            console.error('❌ Health check error:', error);
+          }
           
           if (childProfile && childProfile.ageYears <= 5) {
             // Step 6: Confetti 🎉 burst for ageYears ≤ 5

@@ -19,6 +19,7 @@ export type Database = {
           age_group: string
           age_years: number
           created_at: string
+          daily_telemetry: Json | null
           energy_level: string
           gender: string
           id: string
@@ -27,12 +28,14 @@ export type Database = {
           learning_goals: string[] | null
           name: string
           updated_at: string
+          usage_rules: Json | null
           user_id: string
         }
         Insert: {
           age_group: string
           age_years: number
           created_at?: string
+          daily_telemetry?: Json | null
           energy_level?: string
           gender: string
           id?: string
@@ -41,12 +44,14 @@ export type Database = {
           learning_goals?: string[] | null
           name: string
           updated_at?: string
+          usage_rules?: Json | null
           user_id: string
         }
         Update: {
           age_group?: string
           age_years?: number
           created_at?: string
+          daily_telemetry?: Json | null
           energy_level?: string
           gender?: string
           id?: string
@@ -55,6 +60,7 @@ export type Database = {
           learning_goals?: string[] | null
           name?: string
           updated_at?: string
+          usage_rules?: Json | null
           user_id?: string
         }
         Relationships: []
