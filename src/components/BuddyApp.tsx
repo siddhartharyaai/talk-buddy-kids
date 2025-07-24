@@ -211,13 +211,20 @@ export const BuddyApp = () => {
   // Convert audio blob to base64 and transcribe
   const transcribeAudio = async (audioBlob: Blob, messageId: string) => {
     try {
-      console.log('🔄 Converting audio to base64...');
+      console.log('🔄 Converting audio to base64...', { size: audioBlob.size, type: audioBlob.type });
       
-      // Convert blob to base64
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
-      const base64Audio = btoa(binaryString);
+      // Convert blob to base64 using FileReader for better compatibility
+      const base64Audio = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          // Remove the data URL prefix (e.g., "data:audio/webm;base64,")
+          const base64 = result.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(audioBlob);
+      });
       
       console.log(`📤 Sending ${base64Audio.length} characters to transcribe-audio`);
       
@@ -377,20 +384,13 @@ export const BuddyApp = () => {
     try {
       const stream = streamRef.current || await initializeMicrophone();
       
-      // FIXED: Use WebM format which is widely supported and works well with Deepgram
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
-        ? 'audio/webm;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/webm') 
-        ? 'audio/webm'
-        : MediaRecorder.isTypeSupported('audio/mp4') 
-        ? 'audio/mp4'
-        : 'audio/wav';
+      // Use the most compatible format for Deepgram
+      const mimeType = 'audio/webm';
       
       console.log(`🎤 Using audio format: ${mimeType}`);
       
       const mediaRecorder = new MediaRecorder(stream, { 
-        mimeType,
-        audioBitsPerSecond: 16000 
+        mimeType
       });
       
       audioChunksRef.current = [];
@@ -667,7 +667,7 @@ export const BuddyApp = () => {
           throw new Error(`Audio playback failed: ${audio.error?.message || 'Unknown error'}`);
         });
 
-        // FIXED: Simplified and working audio play logic
+        // Wait for user interaction if needed
         const attemptPlay = async () => {
           try {
             console.log('🎵 Attempting to play audio...');
@@ -679,45 +679,36 @@ export const BuddyApp = () => {
             console.error('❌ Play failed:', playError);
             
             if (playError.name === 'NotAllowedError') {
-              console.log('🔊 Need user interaction for audio');
+              console.log('🔊 Requesting user interaction for audio');
               
-              // Simple user interaction handler
-              const enableAudio = async () => {
-                try {
-                  await audio.play();
-                  setIsSpeaking(true);
-                  console.log('✅ Audio enabled after user interaction!');
-                  
-                  // Remove listeners
-                  document.removeEventListener('click', enableAudio);
-                  document.removeEventListener('touchstart', enableAudio);
-                  
-                } catch (retryError) {
-                  console.error('❌ Audio still failed:', retryError);
-                  setIsSpeaking(false);
-                  URL.revokeObjectURL(audioUrl);
-                  
-                  toast({
-                    title: "Audio Error",
-                    description: "Cannot play audio even with user interaction",
-                    variant: "destructive"
+              toast({
+                title: "🔊 Tap anywhere to enable audio",
+                description: "Buddy wants to speak to you!",
+              });
+
+              // Wait for user interaction
+              const userInteracted = () => {
+                audio.play()
+                  .then(() => {
+                    setIsSpeaking(true);
+                    console.log('✅ Audio enabled after interaction!');
+                  })
+                  .catch(err => {
+                    console.error('❌ Audio failed after interaction:', err);
+                    toast({
+                      title: "Audio Error", 
+                      description: "Cannot play audio even with user interaction",
+                      variant: "destructive"
+                    });
                   });
-                }
+                
+                // Cleanup
+                document.removeEventListener('click', userInteracted);
+                document.removeEventListener('touchstart', userInteracted);
               };
               
-              // Add interaction listeners
-              document.addEventListener('click', enableAudio, { once: true });
-              document.addEventListener('touchstart', enableAudio, { once: true });
-              document.addEventListener('keydown', enableAudio, { once: true });
-              
-              // Cleanup after 30 seconds
-              setTimeout(() => {
-                document.removeEventListener('click', enableAudio);
-                document.removeEventListener('touchstart', enableAudio);
-                document.removeEventListener('keydown', enableAudio);
-                URL.revokeObjectURL(audioUrl);
-                setIsSpeaking(false);
-              }, 30000);
+              document.addEventListener('click', userInteracted, { once: true });
+              document.addEventListener('touchstart', userInteracted, { once: true });
               
             } else {
               throw playError;
