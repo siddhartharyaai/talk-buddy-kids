@@ -608,7 +608,8 @@ export const ParentSettingsModal = ({
             <Button
               onClick={handleSave}
               disabled={!profile.name.trim() || profile.language.length === 0}
-              className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50"
+              variant="buddy"
+              className="flex-1"
             >
               Save Settings
             </Button>

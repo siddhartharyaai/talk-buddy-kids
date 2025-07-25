@@ -2008,13 +2008,17 @@ export const BuddyApp = () => {
         <div className="max-w-2xl mx-auto flex justify-center">
           {/* Big Mic Button with Step 6 pulse animation while recording */}
           <Button
-            variant={isRecording ? "recording" : "buddy"}
+            variant={
+              isRecording ? "recording" 
+              : isSpeaking ? "speaking"
+              : "buddy"
+            }
             className={`
               w-24 h-24 rounded-full shadow-xl transition-all duration-300 hover:scale-110 buddy-glow
               ${isRecording 
                 ? 'recording-pulse scale-110' 
                 : isSpeaking
-                ? 'bg-accent hover:bg-accent/90 scale-105 animate-pulse'
+                ? 'scale-105'
                 : 'hover:shadow-2xl'
               }
               ${(!hasConsent || !childProfile) ? 'opacity-75 grayscale' : ''}

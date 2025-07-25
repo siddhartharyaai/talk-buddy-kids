@@ -78,7 +78,8 @@ export const ConsentBanner = ({ onAccept, onDecline }: ConsentBannerProps) => {
             </Button>
             <Button
               onClick={onAccept}
-              className="flex-1 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700"
+              variant="buddy"
+              className="flex-1"
             >
               I Agree - Continue
             </Button>
