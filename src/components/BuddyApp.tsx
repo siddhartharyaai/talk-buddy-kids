@@ -884,9 +884,9 @@ export const BuddyApp = () => {
     try {
       console.log('🤖 Getting AI response for:', userMessage);
       
-      // Step 4-F: Handle content requests
+      // Step 4-F: Handle content requests (run in parallel, don't block)
       if (messageIntent.type && (messageIntent.type === 'story' || messageIntent.type === 'rhyme')) {
-        await handleContentRequest(messageIntent as { type: 'story' | 'rhyme'; topic: string; action?: string }, buddyMessageId);
+        handleContentRequest(messageIntent as { type: 'story' | 'rhyme'; topic: string; action?: string }, buddyMessageId); // Don't await - run in parallel
         return;
       }
       
