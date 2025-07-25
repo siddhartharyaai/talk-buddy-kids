@@ -30,20 +30,36 @@ serve(async (req) => {
 
     console.log(`📦 Received audio data: ${audio.length} characters`);
 
-    // Convert base64 to binary for Deepgram (WebM format support)
-    const binary = Uint8Array.from(atob(audio), c => c.charCodeAt(0));
-    console.log(`🔄 Converted to binary: ${binary.length} bytes (WebM format expected)`);
+    // Convert base64 to binary for Deepgram with better error handling
+    let binary: Uint8Array;
+    try {
+      // Remove data URL prefix if present
+      const cleanBase64 = audio.replace(/^data:audio\/[^;]+;base64,/, '');
+      const binaryString = atob(cleanBase64);
+      binary = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        binary[i] = binaryString.charCodeAt(i);
+      }
+      console.log(`🔄 Converted to binary: ${binary.length} bytes`);
+    } catch (error) {
+      console.error('❌ Base64 conversion error:', error);
+      throw new Error('Invalid audio data format');
+    }
 
-    // Call Deepgram API with Nova-3 for multi-language support (Step E: Accent-smart STT)
+    // Prepare form data for Deepgram (supports various audio formats)
+    const formData = new FormData();
+    const audioBlob = new Blob([binary], { type: 'audio/webm' });
+    formData.append('file', audioBlob, 'audio.webm');
+
+    // Call Deepgram API with Nova-3 for multi-language support
     const deepgramResponse = await fetch(
       "https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&language=multi&punctuate=true&diarize=false&utterances=false",
       {
         method: "POST",
         headers: {
           Authorization: `Token ${Deno.env.get("DEEPGRAM_API_KEY")}`,
-          "Content-Type": "application/octet-stream"
         },
-        body: binary
+        body: formData
       }
     );
 
