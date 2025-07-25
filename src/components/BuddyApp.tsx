@@ -492,8 +492,7 @@ export const BuddyApp = () => {
           }
           
           toast({
-            title: "✅ Done speaking!",
-            description: "What would you like to talk about next?",
+            // Removed toast notification for production
           });
           resolve();
         });
@@ -763,7 +762,7 @@ export const BuddyApp = () => {
             : msg
         ));
         
-        await playVoice(sceneText);
+        playVoice(sceneText); // Start audio immediately
         currentScene++;
       }
     };
@@ -782,7 +781,7 @@ export const BuddyApp = () => {
     ));
     
     // Use slower, more melodic speech for singing effect
-    await playVoiceWithStyle(rhymeText, 'singing');
+    playVoiceWithStyle(rhymeText, 'singing'); // Start audio immediately
   };
 
   // Enhanced playVoice with style support
@@ -943,14 +942,11 @@ export const BuddyApp = () => {
       
       // Step 6: Hide dev toasts behind import.meta.env.DEV
       if (import.meta.env.DEV) {
-        toast({
-          title: "Buddy responded! 🎉",
-          description: "Your AI friend is ready to chat!"
-        });
+        // Production: Removed toast notification to reduce distractions
       }
       
-      // Step 7.5: Call playVoice after Buddy reply
-      await playVoice(aiResponse);
+      // Step 7.5: Start audio immediately after adding message
+      playVoice(aiResponse); // Don't await - start immediately
       
     } catch (error) {
       console.error('❌ AI response failed:', error);
@@ -1115,7 +1111,7 @@ export const BuddyApp = () => {
       const remainingSeconds = Math.ceil((Number(breakLockedUntil) - Date.now()) / 1000);
       toast({
         title: "Break time! 🛌",
-        description: `Please wait ${remainingSeconds} more seconds before speaking again.`,
+        description: `Break time! ${remainingSeconds} seconds remaining...`,
       });
       return;
     }
@@ -1657,8 +1653,8 @@ export const BuddyApp = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-blue-200 p-4 flex items-center justify-between">
+      {/* Fixed Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-sm border-b border-blue-200 p-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
             <span className="text-white font-bold text-lg">B</span>
@@ -1889,8 +1885,8 @@ export const BuddyApp = () => {
         </div>
       </header>
 
-      {/* Chat Area - FIXED: Added pb-32 to prevent overlap with fixed bottom controls */}
-      <div className="flex-1 p-4 overflow-y-auto pb-32">
+      {/* Chat Area - FIXED: Added pt-20 for fixed header and pb-32 for fixed bottom controls */}
+      <div className="flex-1 p-4 overflow-y-auto pb-32 pt-20">
         <div className="max-w-2xl mx-auto space-y-4">
           {/* Welcome Message */}
           <Card className="p-4 bg-gradient-to-r from-blue-100 to-purple-100 border-blue-200">
