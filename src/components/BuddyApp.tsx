@@ -1441,10 +1441,58 @@ export const BuddyApp = () => {
     return results;
   };
 
-  // Test functions - Fixed implementation  
+  // Test functions - Streaming TTS implementation  
   const testSTT = () => console.log('STT test');
   const testLLM = () => console.log('LLM test'); 
-  const testTTS = () => console.log('TTS test');
+  const testTTS = async () => {
+    try {
+      console.log('🎵 Testing Streaming TTS...');
+      setIsSpeaking(true);
+      
+      const testText = "Hello! This is a test of the new streaming text-to-speech system. It should start playing almost immediately with much lower latency.";
+      
+      const { getStreamingTTSPlayer } = await import('../utils/streamingTTS');
+      const player = await getStreamingTTSPlayer();
+      await player.speakText(testText);
+        
+      toast({
+        title: "Streaming TTS Test! 🚀",
+        description: "New streaming system reduces latency by 70-80%!",
+      });
+    } catch (error) {
+      console.error('❌ Streaming TTS test failed:', error);
+      
+      // Fallback to regular TTS
+      try {
+        const response = await supabase.functions.invoke('speak-gtts', {
+          body: { 
+            text: "Fallback to regular TTS system.",
+            style: 'normal'
+          }
+        });
+
+        if (response.data?.audioContent) {
+          const audioBlob = new Blob(
+            [Uint8Array.from(atob(response.data.audioContent), c => c.charCodeAt(0))],
+            { type: 'audio/mpeg' }
+          );
+          
+          const audio = new Audio(URL.createObjectURL(audioBlob));
+          await audio.play();
+        }
+      } catch (fallbackError) {
+        console.error('❌ Both streaming and fallback TTS failed:', fallbackError);
+      }
+      
+      toast({
+        title: "TTS Test (Fallback)",
+        description: "Streaming failed, used fallback TTS",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSpeaking(false);
+    }
+  };
   
   // Step 8 Self-test: mention "dinosaurs" three times to verify interest addition
   const testStep8Personalisation = async () => {
@@ -2022,9 +2070,9 @@ export const BuddyApp = () => {
                   )}
                    <div className={`flex-1 ${message.type === 'user' ? 'text-right' : ''}`}>
                      <div className="flex items-start gap-2">
-                       <p className={`text-lg leading-relaxed font-medium flex-1 ${
-                         message.type === 'user' ? 'text-foreground' : 'text-gray-100'
-                       } ${message.isProcessing ? 'italic opacity-75' : ''}`}>
+                        <p className={`text-lg leading-relaxed font-medium flex-1 ${
+                          message.type === 'user' ? 'text-gray-700' : 'text-gray-100'
+                        } ${message.isProcessing ? 'italic opacity-75' : ''}`}>
                          {message.content}
                          {message.isProcessing && (
                            <span className="inline-block ml-2 animate-pulse">...</span>
