@@ -140,6 +140,12 @@ function dispatch(action: Action) {
 type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
+  // Prevent blank toasts
+  if (!props.title && !props.description) {
+    console.warn('Toast called with no title or description');
+    return { id: '', dismiss: () => {}, update: () => {} };
+  }
+
   const id = genId()
 
   const update = (props: ToasterToast) =>

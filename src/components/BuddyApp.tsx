@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, Settings, Volume2, MessageSquare, Brain } from 'lucide-react';
+import { Mic, Settings, Volume2, MessageSquare, Brain, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConsentBanner } from './ConsentBanner';
@@ -1733,11 +1733,11 @@ export const BuddyApp = () => {
             className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
             title="Logout"
           >
-            <span className="text-gray-600 font-medium text-sm">Logout</span>
+            <LogOut className="w-4 h-4 text-gray-600" />
           </Button>
           
           {/* Production Controls - Always visible for parents */}
-          <div className="flex gap-1 mr-2">
+          <div className="hidden sm:flex gap-1 mr-2">
             {/* Lock Controls for Parents - Always visible */}
             <Button
               variant="ghost"
@@ -1978,7 +1978,7 @@ export const BuddyApp = () => {
                   )}
                   <div className={`flex-1 ${message.type === 'user' ? 'text-right' : ''}`}>
                     <p className={`text-lg leading-relaxed font-medium ${
-                      message.type === 'user' ? 'text-foreground' : 'text-white'
+                      message.type === 'user' ? 'text-foreground' : 'text-gray-100'
                     } ${message.isProcessing ? 'italic opacity-75' : ''}`}>
                       {message.content}
                       {message.isProcessing && (
