@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { ConsentBanner } from './ConsentBanner';
 import { ParentSettingsModal, ChildProfile } from './ParentSettingsModal';
 import { AvatarDisplay } from './AvatarDisplay';
+import { ThemeToggle } from './ThemeToggle';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -1668,14 +1669,14 @@ export const BuddyApp = () => {
   console.log('🔍 About to render JSX...', { hasConsent, childProfile, showConsent, showSettings });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex flex-col">
+    <div className="min-h-screen flex flex-col transition-colors duration-300">
       {/* Fixed Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-sm border-b border-blue-200 p-4 flex items-center justify-between">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-md border-b border-border/50 p-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center space-x-3">
           {childProfile?.avatar ? (
             <AvatarDisplay avatarType={childProfile.avatar} size="md" />
           ) : (
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 buddy-gradient rounded-full flex items-center justify-center shadow-lg">
               <span className="text-white font-bold text-lg">B</span>
             </div>
           )}
@@ -1688,6 +1689,20 @@ export const BuddyApp = () => {
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Theme Toggle */}
+          <ThemeToggle />
+          
+          {/* Settings Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowSettings(true)}
+            className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
+            title="Settings"
+          >
+            <Settings className="w-5 h-5 text-primary" />
+          </Button>
+          
           {/* Step 10: Hide test buttons in production build v1.0.0 */}
           {import.meta.env.DEV && (
             <div className="flex gap-1 mr-2">
@@ -1909,19 +1924,19 @@ export const BuddyApp = () => {
       <div className="flex-1 p-4 overflow-y-auto pb-32 pt-20">
         <div className="max-w-2xl mx-auto space-y-4">
           {/* Welcome Message */}
-          <Card className="p-4 bg-gradient-to-r from-blue-100 to-purple-100 border-blue-200">
-            <div className="flex items-start space-x-3">
+          <Card className="buddy-card p-6 buddy-gradient">
+            <div className="flex items-start space-x-4">
               {childProfile?.avatar ? (
-                <AvatarDisplay avatarType={childProfile.avatar} size="sm" />
+                <AvatarDisplay avatarType={childProfile.avatar} size="lg" />
               ) : (
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-bold text-sm">B</span>
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <span className="text-white font-bold text-lg">B</span>
                 </div>
               )}
               <div>
-                <p className="text-gray-800 text-lg">
-                  {getWelcomeMessage()}
-                </p>
+            <p className="text-white text-xl font-semibold leading-relaxed animate-smooth-fade-in">
+              {getWelcomeMessage()}
+            </p>
               </div>
             </div>
           </Card>
@@ -1932,10 +1947,10 @@ export const BuddyApp = () => {
               <Card 
                 key={`${message.id}-${index}`} 
                 className={`
-                  p-4 animate-bubble-fade-slide
+                  buddy-card p-4 chat-message
                   ${message.type === 'user' 
-                    ? 'bg-white border-gray-200 ml-8' 
-                    : 'bg-gradient-to-r from-blue-100 to-purple-100 border-blue-200 mr-8'
+                    ? 'bg-secondary/30 border-secondary/50 ml-8' 
+                    : 'buddy-gradient mr-8 text-white'
                   }
                 `}
                 style={{ animationDelay: `${index * 100}ms` }}
@@ -1951,21 +1966,23 @@ export const BuddyApp = () => {
                     )
                   )}
                   <div className={`flex-1 ${message.type === 'user' ? 'text-right' : ''}`}>
-                    <p className={`${
-                      message.type === 'user' ? 'text-gray-700' : 'text-gray-800'
+                    <p className={`text-lg leading-relaxed font-medium ${
+                      message.type === 'user' ? 'text-foreground' : 'text-white'
                     } ${message.isProcessing ? 'italic opacity-75' : ''}`}>
                       {message.content}
                       {message.isProcessing && (
                         <span className="inline-block ml-2 animate-pulse">...</span>
                       )}
                     </p>
-                    <span className="text-xs text-gray-500 mt-1 block">
+                    <span className={`text-xs mt-2 block ${
+                      message.type === 'user' ? 'text-muted-foreground' : 'text-white/70'
+                    }`}>
                       {message.timestamp.toLocaleTimeString()}
                     </span>
                   </div>
                   {message.type === 'user' && (
-                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-gray-600 font-bold text-sm">
+                    <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
+                      <span className="text-secondary-foreground font-bold text-sm">
                         {childProfile?.name?.charAt(0) || 'U'}
                       </span>
                     </div>
@@ -1974,27 +1991,28 @@ export const BuddyApp = () => {
               </Card>
             ))
           ) : (
-            <div className="text-center text-gray-500 text-sm py-8">
-              Your conversation will appear here...
+            <div className="text-center text-muted-foreground text-lg py-12 font-medium">
+              🎤 Your conversation will appear here...
             </div>
           )}
         </div>
       </div>
 
       {/* FIXED: Bottom Controls now fixed at bottom of viewport */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-white/90 backdrop-blur-sm border-t border-blue-200 z-10">
+      <div className="fixed bottom-0 left-0 right-0 p-6 bg-card/90 backdrop-blur-md border-t border-border/50 z-10">
         <div className="max-w-2xl mx-auto flex justify-center">
           {/* Big Mic Button with Step 6 pulse animation while recording */}
           <Button
+            variant={isRecording ? "recording" : "buddy"}
             className={`
-              w-20 h-20 rounded-full shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl
+              w-24 h-24 rounded-full shadow-xl transition-all duration-300 hover:scale-110 buddy-glow
               ${isRecording 
-                ? 'bg-red-500 hover:bg-red-600 scale-110 shadow-red-200 animate-mic-pulse' 
+                ? 'recording-pulse scale-110' 
                 : isSpeaking
-                ? 'bg-green-500 hover:bg-green-600 scale-105 shadow-green-200 animate-pulse'
-                : 'bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-blue-200'
+                ? 'bg-accent hover:bg-accent/90 scale-105 animate-pulse'
+                : 'hover:shadow-2xl'
               }
-              ${(!hasConsent || !childProfile) ? 'opacity-75' : ''}
+              ${(!hasConsent || !childProfile) ? 'opacity-75 grayscale' : ''}
             `}
             onMouseDown={handleMicPress}
             onMouseUp={handleMicRelease}

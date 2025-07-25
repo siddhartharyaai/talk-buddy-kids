@@ -24,11 +24,11 @@ const sizes = {
 
 export const AvatarDisplay = ({ avatarType, size = 'md', className = '' }: AvatarDisplayProps) => {
   return (
-    <div className={`${sizes[size]} rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-blue-400 to-purple-500 ${className}`}>
+    <div className={`${sizes[size]} rounded-full overflow-hidden flex items-center justify-center buddy-gradient shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 ${className}`}>
       <img 
         src={avatarImages[avatarType]} 
         alt={`${avatarType} avatar`}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
       />
     </div>
   );

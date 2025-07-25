@@ -80,41 +80,64 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Kid-friendly dark theme - softer, warmer colors */
+    --background: 235 20% 8%;
+    --foreground: 220 20% 95%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 235 15% 12%;
+    --card-foreground: 220 20% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 235 15% 12%;
+    --popover-foreground: 220 20% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Friendly blue primary in dark mode */
+    --primary: 210 100% 70%;
+    --primary-foreground: 235 20% 8%;
+    --primary-glow: 210 100% 80%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    /* Soft purple secondary for dark */
+    --secondary: 270 40% 20%;
+    --secondary-foreground: 270 60% 90%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    /* Warm muted tones */
+    --muted: 235 15% 15%;
+    --muted-foreground: 220 15% 70%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    /* Bright green accent for dark */
+    --accent: 140 60% 60%;
+    --accent-foreground: 140 80% 10%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    /* Soft red for alerts in dark */
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 235 15% 20%;
+    --input: 235 15% 18%;
+    --ring: 210 100% 70%;
+
+    /* Enhanced kid colors for dark mode */
+    --buddy-orange: 25 85% 60%;
+    --buddy-pink: 320 50% 70%;
+    --buddy-yellow: 50 85% 65%;
+    
+    /* Dark mode gradients */
+    --gradient-buddy: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-background: linear-gradient(180deg, hsl(var(--background)), hsl(235 18% 10%));
+    --gradient-recording: linear-gradient(45deg, hsl(var(--accent)), hsl(var(--buddy-yellow)));
+    
+    /* Dark shadows with glow effects */
+    --shadow-soft: 0 4px 20px -4px hsl(var(--primary) / 0.3);
+    --shadow-recording: 0 0 30px hsl(var(--accent) / 0.6);
+    --shadow-chat: 0 2px 12px -2px hsl(var(--foreground) / 0.15);
+
+    --sidebar-background: 235 20% 8%;
+    --sidebar-foreground: 220 20% 95%;
+    --sidebar-primary: 210 100% 70%;
+    --sidebar-primary-foreground: 235 20% 8%;
+    --sidebar-accent: 235 15% 15%;
+    --sidebar-accent-foreground: 220 20% 95%;
+    --sidebar-border: 235 15% 20%;
+    --sidebar-ring: 210 100% 70%;
   }
 }
 
@@ -124,6 +147,81 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-300;
+    background: var(--gradient-background);
+  }
+
+  /* Kid-friendly enhanced styles */
+  .buddy-card {
+    @apply bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .buddy-button {
+    @apply rounded-xl font-medium transition-all duration-200;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .buddy-button:hover {
+    @apply scale-105;
+    box-shadow: var(--shadow-recording);
+  }
+
+  .recording-pulse {
+    animation: recording-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes recording-pulse {
+    0%, 100% { 
+      transform: scale(1);
+      box-shadow: var(--shadow-soft);
+    }
+    50% { 
+      transform: scale(1.05);
+      box-shadow: var(--shadow-recording);
+    }
+  }
+
+  .chat-message {
+    @apply animate-fade-in;
+  }
+
+  .buddy-gradient {
+    background: var(--gradient-buddy);
+  }
+
+  .recording-gradient {
+    background: var(--gradient-recording);
+  }
+
+  /* Kid-friendly text animations */
+  .animate-smooth-fade-in {
+    animation: smooth-fade-in 0.6s ease-out;
+  }
+
+  @keyframes smooth-fade-in {
+    0% { 
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% { 
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Enhanced kid-friendly font sizing */
+  .text-kid-friendly {
+    @apply text-lg leading-relaxed;
+    font-weight: 500;
+  }
+
+  /* Soft glow effect for important elements */
+  .buddy-glow {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  }
+
+  .buddy-glow:hover {
+    box-shadow: 0 0 30px hsl(var(--primary) / 0.5);
   }
 }
