@@ -940,13 +940,13 @@ export const BuddyApp = () => {
           : msg
       ));
       
-      // Step 6: Hide dev toasts behind import.meta.env.DEV
+      // Step 6: Start audio generation immediately (parallel with UI update)
+      playVoice(aiResponse); // Start TTS generation right away
+      
+      // Step 6.5: Hide dev toasts behind import.meta.env.DEV
       if (import.meta.env.DEV) {
         // Production: Removed toast notification to reduce distractions
       }
-      
-      // Step 7.5: Start audio immediately after adding message
-      playVoice(aiResponse); // Don't await - start immediately
       
     } catch (error) {
       console.error('❌ AI response failed:', error);
