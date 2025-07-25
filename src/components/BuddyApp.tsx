@@ -721,9 +721,16 @@ export const BuddyApp = () => {
       const content = data.content;
       console.log('📖 Content received:', content);
       
+      // Start TTS immediately when content is received
       if (intent.type === 'story') {
+        const sceneText = `Here's a story called "${content.title}": ${content.body} The end! Did you like the story?`;
+        console.log('🎵 Starting immediate TTS for story');
+        playVoice(sceneText); // Start TTS right away
         await handleStoryContent(content, messageId);
       } else if (intent.type === 'rhyme') {
+        const rhymeText = `♪ Let me sing you "${content.title}"! ♪\n\n${content.lyrics ? content.lyrics.join('\n♪ ') + ' ♪' : content.body}`;
+        console.log('🎵 Starting immediate TTS for rhyme');
+        playVoiceWithStyle(rhymeText, 'singing'); // Start TTS right away
         await handleRhymeContent(content, messageId);
       }
       
@@ -762,7 +769,7 @@ export const BuddyApp = () => {
             : msg
         ));
         
-        playVoice(sceneText); // Start audio immediately
+        // TTS already started in handleContentRequest for immediate playback
         currentScene++;
       }
     };
@@ -781,7 +788,7 @@ export const BuddyApp = () => {
     ));
     
     // Use slower, more melodic speech for singing effect
-    playVoiceWithStyle(rhymeText, 'singing'); // Start audio immediately
+    // TTS already started in handleContentRequest for immediate playback
   };
 
   // Enhanced playVoice with style support
