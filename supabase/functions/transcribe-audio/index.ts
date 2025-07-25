@@ -46,10 +46,40 @@ serve(async (req) => {
       throw new Error('Invalid audio data format');
     }
 
-    // Prepare form data for Deepgram API (supports WebM format)
+    // Prepare form data for Deepgram API with cross-platform audio support
     const formData = new FormData();
-    const audioBlob = new Blob([binary], { type: 'audio/webm' });
-    formData.append('file', audioBlob, 'recording.webm');
+    
+    // Detect audio format from the first few bytes or use WebM as default
+    let mimeType = 'audio/webm';
+    let fileName = 'recording.webm';
+    
+    // Check for common audio file signatures
+    if (binary.length >= 4) {
+      const header = Array.from(binary.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      if (header.startsWith('1a45dfa3')) {
+        // WebM/Matroska signature
+        mimeType = 'audio/webm';
+        fileName = 'recording.webm';
+      } else if (header.startsWith('52494646')) {
+        // RIFF header (WAV)
+        mimeType = 'audio/wav';
+        fileName = 'recording.wav';
+      } else if (header.startsWith('49443303') || header.startsWith('fffb') || header.startsWith('fff3')) {
+        // MP3 signatures
+        mimeType = 'audio/mpeg';
+        fileName = 'recording.mp3';
+      } else if (binary.length >= 8 && Array.from(binary.slice(4, 8)).map(b => String.fromCharCode(b)).join('') === 'ftyp') {
+        // MP4/M4A signature
+        mimeType = 'audio/mp4';
+        fileName = 'recording.m4a';
+      }
+    }
+    
+    console.log(`🎵 Detected audio format: ${mimeType}, file: ${fileName}`);
+    
+    const audioBlob = new Blob([binary], { type: mimeType });
+    formData.append('file', audioBlob, fileName);
     formData.append('model', 'nova-2');
     formData.append('language', 'multi');
     formData.append('smart_format', 'true');

@@ -1150,9 +1150,31 @@ export const BuddyApp = () => {
       streamRef.current = stream;
       audioChunksRef.current = [];
       
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
+      // Cross-platform audio format detection
+      let mimeType = 'audio/webm;codecs=opus';
+      let audioType = 'audio/webm';
+      
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+        audioType = 'audio/webm';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+        audioType = 'audio/mp4';
+      } else if (MediaRecorder.isTypeSupported('audio/mpeg')) {
+        mimeType = 'audio/mpeg';
+        audioType = 'audio/mpeg';
+      } else if (MediaRecorder.isTypeSupported('audio/wav')) {
+        mimeType = 'audio/wav';
+        audioType = 'audio/wav';
+      } else {
+        // Fallback for older browsers
+        mimeType = '';
+        audioType = 'audio/wav';
+      }
+      
+      console.log('🎵 Using audio format:', mimeType, 'on', navigator.userAgent.includes('Safari') ? 'Safari' : 'Other browser');
+      
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
       
       mediaRecorderRef.current = mediaRecorder;
       
@@ -1167,8 +1189,8 @@ export const BuddyApp = () => {
         console.log('🛑 Recording stopped, processing audio...');
         
         if (audioChunksRef.current.length > 0) {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          console.log('🎵 Audio blob created:', audioBlob.size, 'bytes');
+          const audioBlob = new Blob(audioChunksRef.current, { type: audioType });
+          console.log('🎵 Audio blob created:', audioBlob.size, 'bytes, format:', audioType);
           
           // Create temporary message for transcription
           const tempMessage: ChatMessage = {
