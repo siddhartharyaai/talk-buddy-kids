@@ -98,6 +98,9 @@ export const BuddyApp = () => {
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const lastChunkProcessed = useRef<number>(0);
+  
+  // Audio playback ref for stop functionality
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   console.log('🔍 State initialized, running useEffect...');
 
@@ -392,6 +395,7 @@ export const BuddyApp = () => {
       
       // Create audio element
       const audio = new Audio(audioUrl);
+      currentAudioRef.current = audio;
       
       // Set playback rate based on profile speech speed setting (Step F)
       const getPlaybackRate = (profile: ChildProfile) => {
@@ -413,6 +417,7 @@ export const BuddyApp = () => {
         audio.addEventListener('ended', async () => {
           console.log('✅ Audio playback completed');
           setIsSpeaking(false);
+          currentAudioRef.current = null;
           URL.revokeObjectURL(audioUrl);
           
           // HEALTH GUARDRAILS: Update telemetry and perform checks
@@ -998,6 +1003,34 @@ export const BuddyApp = () => {
       });
     }
   }, [childProfile, playVoice, addTranscript, loadLearningMemory, updateLearningMemory]);
+
+  // Stop speaking function
+  const stopSpeaking = useCallback(() => {
+    console.log('🛑 Stop speaking requested');
+    
+    // Stop current audio if playing
+    if (currentAudioRef.current) {
+      console.log('🔇 Stopping current audio');
+      currentAudioRef.current.pause();
+      currentAudioRef.current.currentTime = 0;
+      currentAudioRef.current = null;
+    }
+    
+    // Reset speaking state
+    setIsSpeaking(false);
+    
+    // Try to stop streaming TTS if available
+    try {
+      import('../utils/streamingTTS').then(({ cleanupStreamingTTS }) => {
+        cleanupStreamingTTS();
+        console.log('✅ Streaming TTS stopped');
+      }).catch(error => {
+        console.log('ℹ️ Streaming TTS not available:', error.message);
+      });
+    } catch (error) {
+      console.log('ℹ️ Failed to stop streaming TTS:', error);
+    }
+  }, []);
 
   // Auto-send welcome greeting on fresh app load - Always greets when app opens/refreshes
   const sendAutoGreeting = useCallback(async () => {
@@ -2152,10 +2185,7 @@ export const BuddyApp = () => {
       {isSpeaking && (
         <Button 
           className="fixed bottom-24 right-4 z-50 bg-red-600 hover:bg-red-700 text-white p-3 rounded-full shadow-lg transition-all duration-200 animate-fade-in"
-          onClick={() => {
-            // TODO: Implement stopSpeaking() in next step
-            console.log('Stop button clicked');
-          }}
+          onClick={stopSpeaking}
         >
           ⏹️
         </Button>
