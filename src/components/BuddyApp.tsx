@@ -2148,6 +2148,19 @@ export const BuddyApp = () => {
         </p>
       </div>
 
+      {/* Stop Speaking Button - appears when Buddy is talking */}
+      {isSpeaking && (
+        <Button 
+          className="fixed bottom-24 right-4 z-50 bg-red-600 hover:bg-red-700 text-white p-3 rounded-full shadow-lg transition-all duration-200 animate-fade-in"
+          onClick={() => {
+            // TODO: Implement stopSpeaking() in next step
+            console.log('Stop button clicked');
+          }}
+        >
+          ⏹️
+        </Button>
+      )}
+
       {/* Consent Banner */}
       {showConsent && (
         <ConsentBanner
