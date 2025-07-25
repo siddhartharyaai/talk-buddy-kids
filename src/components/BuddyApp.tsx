@@ -351,10 +351,10 @@ export const BuddyApp = () => {
         return;
       }
 
-      console.log('🔊 Starting voice playback for:', text.substring(0, 50));
+      console.log('🔊 Starting voice playback for:', text.substring(0, 50), 'at timestamp:', Date.now());
 
       // Call speak-gtts function
-      console.log('📞 Calling speak-gtts function...');
+      console.log('📞 Calling speak-gtts function at timestamp:', Date.now());
       const { data, error } = await supabase.functions.invoke('speak-gtts', {
         body: { text }
       });
@@ -369,7 +369,7 @@ export const BuddyApp = () => {
         throw new Error('No audio content received from TTS service');
       }
 
-      console.log('✅ Audio content received, length:', data.audioContent.length);
+      console.log('✅ Audio content received, length:', data.audioContent.length, 'at timestamp:', Date.now());
 
       // Create audio blob - FIXED for MP3 format from Deepgram
       const binaryString = atob(data.audioContent);
@@ -727,7 +727,7 @@ export const BuddyApp = () => {
         const firstScene = scenes[0];
         const sceneText = `Here's a story called "${content.title}": ${firstScene}${scenes.length > 1 ? ' ...should I continue?' : ' The end! Did you like the story?'}`;
         
-        console.log('🎵 Starting immediate TTS for story (first scene only)');
+        console.log('🎵 Starting immediate TTS for story (first scene only) at timestamp:', Date.now());
         playVoice(sceneText); // Start TTS for EXACT text that will be displayed
         handleStoryContent(content, messageId); // Don't await - run in parallel
       } else if (intent.type === 'rhyme') {
@@ -766,11 +766,14 @@ export const BuddyApp = () => {
         const scene = scenes[currentScene];
         const sceneText = `${currentScene === 0 ? `Here's a story called "${story.title}": ` : ''}${scene}${currentScene < scenes.length - 1 ? ' ...should I continue?' : ' The end! Did you like the story?'}`;
         
-        setMessages(prev => prev.map(msg => 
-          msg.id === messageId
-            ? { ...msg, content: sceneText, isProcessing: false }
-            : msg
-        ));
+        setMessages(prev => {
+          console.log('📱 Displaying text in UI at timestamp:', Date.now());
+          return prev.map(msg => 
+            msg.id === messageId
+              ? { ...msg, content: sceneText, isProcessing: false }
+              : msg
+          );
+        });
         
         // TTS already started in handleContentRequest for immediate playback
         currentScene++;
