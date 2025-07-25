@@ -28,6 +28,7 @@ import { testGetContent } from '../utils/testGetContent';
 import { testStorageAccess } from '../utils/testStorageAccess';
 import { runDynamicFallbackTests, generateTestReport } from '../utils/testDynamicFallback';
 import confetti from 'canvas-confetti';
+import { AudioChimes } from '../utils/audioChimes';
 
 export interface ChatMessage {
   id: string;
@@ -101,6 +102,10 @@ export const BuddyApp = () => {
   
   // Audio playback ref for stop functionality
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // SECTION D: Auto-stop recording refs
+  const autoStopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSpeechTimeRef = useRef<number>(0);
 
   console.log('🔍 State initialized, running useEffect...');
 
@@ -314,13 +319,31 @@ export const BuddyApp = () => {
         console.log('📝 Transcription update:', data);
         
         if (data.type === 'partial') {
-          // Update UI with partial results for better UX
+          // SECTION D: Update speech activity tracking for auto-stop
           if (data.text.trim()) {
+            lastSpeechTimeRef.current = Date.now();
+            
+            // Clear any existing auto-stop timeout since we have speech
+            if (autoStopTimeoutRef.current) {
+              clearTimeout(autoStopTimeoutRef.current);
+              autoStopTimeoutRef.current = null;
+            }
+            
+            // Update UI with partial results for better UX
             setMessages(prev => prev.map(msg => 
               msg.id === messageId 
                 ? { ...msg, content: `${data.text}...`, isProcessing: true }
                 : msg
             ));
+          } else {
+            // No speech detected in this partial - start auto-stop timer if not already running
+            if (!autoStopTimeoutRef.current && isRecording) {
+              autoStopTimeoutRef.current = setTimeout(() => {
+                if (Date.now() - lastSpeechTimeRef.current > 500) {
+                  autoStopRecording();
+                }
+              }, 500);
+            }
           }
         } else if (data.type === 'final') {
           finalTranscript = data.text;
@@ -340,12 +363,22 @@ export const BuddyApp = () => {
           ));
           
           if (!finalTranscript || finalTranscript.trim() === '') {
+            // SECTION D: Play error chime for failed transcription
+            AudioChimes.playErrorChime().catch(err => 
+              console.log('ℹ️ Could not play error chime:', err)
+            );
+            
             toast({
               title: "Empty transcript",
               description: "Could not understand the audio. Try speaking clearer.",
               variant: "destructive"
             });
           } else {
+            // SECTION D: Play success chime for successful transcription
+            AudioChimes.playSuccessChime().catch(err => 
+              console.log('ℹ️ Could not play success chime:', err)
+            );
+            
             // Step 6: Hide dev toasts behind import.meta.env.DEV
             if (import.meta.env.DEV) {
               toast({
@@ -361,6 +394,12 @@ export const BuddyApp = () => {
           ws.close();
         } else if (data.type === 'error') {
           console.error('❌ Streaming transcription error:', data.message);
+          
+          // SECTION D: Play error chime for transcription errors
+          AudioChimes.playErrorChime().catch(err => 
+            console.log('ℹ️ Could not play error chime:', err)
+          );
+          
           throw new Error(data.message);
         }
       };
@@ -376,6 +415,11 @@ export const BuddyApp = () => {
       
     } catch (error) {
       console.error('❌ Transcription failed:', error);
+      
+      // SECTION D: Play error chime for general transcription failures
+      AudioChimes.playErrorChime().catch(err => 
+        console.log('ℹ️ Could not play error chime:', err)
+      );
       
       // Update message with error
       setMessages(prev => prev.map(msg => 
@@ -1324,8 +1368,17 @@ export const BuddyApp = () => {
     startRecording();
   };
 
-  // Core recording function
+  // Core recording function with audio chimes (SECTION D)
   const startRecording = async () => {
+    console.log('🎤 Starting recording...');
+    setIsRecording(true);
+    
+    // SECTION D: Play start chime
+    try {
+      await AudioChimes.playStartChime();
+    } catch (error) {
+      console.log('ℹ️ Could not play start chime:', error);
+    }
     
     try {
       // Request microphone permission and start recording
@@ -1408,6 +1461,10 @@ export const BuddyApp = () => {
       mediaRecorder.start(100); // Collect data every 100ms
       console.log('✅ Recording started successfully');
       
+      // SECTION D: Initialize speech tracking for auto-stop
+      lastSpeechTimeRef.current = Date.now();
+      autoStopTimeoutRef.current = null;
+      
     } catch (error) {
       console.error('❌ Failed to start recording:', error);
       setIsRecording(false);
@@ -1420,14 +1477,53 @@ export const BuddyApp = () => {
     }
   };
 
-  const handleMicRelease = () => {
+  // Enhanced handleMicRelease with audio chimes (SECTION D)
+  const handleMicRelease = async () => {
     console.log('🔇 Stopping recording...');
     setIsRecording(false);
+    
+    // Clear auto-stop timeout
+    if (autoStopTimeoutRef.current) {
+      clearTimeout(autoStopTimeoutRef.current);
+      autoStopTimeoutRef.current = null;
+    }
+    
+    // SECTION D: Play stop chime
+    try {
+      await AudioChimes.playStopChime();
+    } catch (error) {
+      console.log('ℹ️ Could not play stop chime:', error);
+    }
     
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
   };
+
+  // SECTION D: Auto-stop recording due to silence
+  const autoStopRecording = useCallback(async () => {
+    console.log('⏰ Auto-stopping recording due to silence');
+    
+    setIsRecording(false);
+    
+    // Play subtle auto-stop chime (different from manual stop)
+    try {
+      await AudioChimes.playStopChime();
+    } catch (error) {
+      console.log('ℹ️ Could not play auto-stop chime:', error);
+    }
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    
+    // Give user feedback about auto-stop
+    toast({
+      title: "Recording stopped",
+      description: "Auto-stopped after silence detected",
+      duration: 2000
+    });
+  }, [toast]);
 
   // 4. ADAPTIVE REPLY ENGINE - Self Tests
   const testAdaptiveReplies = async () => {
