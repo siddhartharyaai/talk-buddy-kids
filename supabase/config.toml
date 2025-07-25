@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.bulk-import]
 verify_jwt = false
+
+[functions.repair-module]
+verify_jwt = false

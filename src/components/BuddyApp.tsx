@@ -277,10 +277,10 @@ export const BuddyApp = () => {
     return;
   };
 
-  // Convert audio blob to base64 and transcribe
+  // Enhanced transcription with streaming and quality assessment
   const transcribeAudio = async (audioBlob: Blob, messageId: string) => {
     try {
-      console.log('🔄 Converting audio to base64...');
+      console.log('🔄 Starting streaming transcription...');
       
       // Convert blob to base64
       const arrayBuffer = await audioBlob.arrayBuffer();
@@ -288,47 +288,91 @@ export const BuddyApp = () => {
       const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
       const base64Audio = btoa(binaryString);
       
-      console.log(`📤 Sending ${base64Audio.length} characters to transcribe-audio`);
+      console.log(`📤 Sending ${base64Audio.length} characters to streaming transcription`);
       
-    // Call Supabase edge function
-      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-        body: { audio: base64Audio }
-      });
+      // Use streaming transcription instead of batch processing
+      const projectRef = window.location.hostname.split('.')[0];
+      const wsUrl = `wss://${projectRef}.functions.supabase.co/functions/v1/transcribe-streaming`;
       
-      if (error) {
-        console.error('❌ Transcription error:', error);
-        throw error;
-      }
+      const ws = new WebSocket(wsUrl);
+      let finalTranscript = '';
+      let qualityData: { isLowQuality: boolean; reason: string } | null = null;
       
-      console.log('📝 Transcription response:', data);
+      ws.onopen = () => {
+        console.log('🔌 Connected to streaming transcription');
+        // Send audio data
+        ws.send(JSON.stringify({
+          type: 'audio',
+          data: base64Audio
+        }));
+        // Signal recording complete
+        ws.send(JSON.stringify({ type: 'stop_recording' }));
+      };
       
-      const transcribedText = data.text || "I'm having trouble hearing you. Can you try speaking closer to your device?";
-      
-      // Update the message with transcribed text
-      setMessages(prev => prev.map(msg => 
-        msg.id === messageId 
-          ? { ...msg, content: transcribedText, isProcessing: false }
-          : msg
-      ));
-      
-      if (!transcribedText || transcribedText.trim() === '') {
-        toast({
-          title: "Empty transcript",
-          description: "Deepgram gave an empty transcript – try again?",
-          variant: "destructive"
-        });
-      } else {
-        // Step 6: Hide dev toasts behind import.meta.env.DEV
-        if (import.meta.env.DEV) {
-          toast({
-            title: "Speech recognized! 🎯",
-            description: `"${transcribedText.slice(0, 50)}${transcribedText.length > 50 ? '...' : ''}"`
-          });
-        }
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log('📝 Transcription update:', data);
         
-        // Get AI response from Buddy (run in background, don't block)
-        getBuddyResponse(transcribedText); // Don't await - run async
-      }
+        if (data.type === 'partial') {
+          // Update UI with partial results for better UX
+          if (data.text.trim()) {
+            setMessages(prev => prev.map(msg => 
+              msg.id === messageId 
+                ? { ...msg, content: `${data.text}...`, isProcessing: true }
+                : msg
+            ));
+          }
+        } else if (data.type === 'final') {
+          finalTranscript = data.text;
+          qualityData = {
+            isLowQuality: data.isLowQuality,
+            reason: data.durationMs < 300 ? 'too short' : 
+                   data.confidence < 0.6 ? 'low confidence' : 'unknown'
+          };
+          
+          console.log(`✅ Final transcription: "${finalTranscript}" (quality: ${qualityData.isLowQuality ? 'LOW' : 'GOOD'})`);
+          
+          // Update the message with final transcribed text
+          setMessages(prev => prev.map(msg => 
+            msg.id === messageId 
+              ? { ...msg, content: finalTranscript, isProcessing: false }
+              : msg
+          ));
+          
+          if (!finalTranscript || finalTranscript.trim() === '') {
+            toast({
+              title: "Empty transcript",
+              description: "Could not understand the audio. Try speaking clearer.",
+              variant: "destructive"
+            });
+          } else {
+            // Step 6: Hide dev toasts behind import.meta.env.DEV
+            if (import.meta.env.DEV) {
+              toast({
+                title: `Speech recognized! ${qualityData.isLowQuality ? '⚠️' : '🎯'}`,
+                description: `"${finalTranscript.slice(0, 50)}${finalTranscript.length > 50 ? '...' : ''}"`
+              });
+            }
+            
+            // Route to appropriate response handler with quality data
+            getBuddyResponse(finalTranscript, qualityData);
+          }
+          
+          ws.close();
+        } else if (data.type === 'error') {
+          console.error('❌ Streaming transcription error:', data.message);
+          throw new Error(data.message);
+        }
+      };
+      
+      ws.onerror = (error) => {
+        console.error('❌ WebSocket error:', error);
+        throw new Error('Streaming transcription connection failed');
+      };
+      
+      ws.onclose = () => {
+        console.log('🔌 Streaming transcription closed');
+      };
       
     } catch (error) {
       console.error('❌ Transcription failed:', error);
@@ -882,8 +926,8 @@ export const BuddyApp = () => {
   }, [playVoice]);
 
 
-  // Get AI response from Buddy - Enhanced with content switchboard (Step 4-F)
-  const getBuddyResponse = useCallback(async (userMessage: string) => {
+  // Enhanced getBuddyResponse with self-healing and repair module routing
+  const getBuddyResponse = useCallback(async (userMessage: string, qualityData?: { isLowQuality: boolean; reason: string }) => {
     if (!childProfile) {
       console.error('❌ No child profile available for AI response');
       return;
@@ -891,6 +935,63 @@ export const BuddyApp = () => {
 
     // Step 8: Add transcript to learning memory
     addTranscript(childProfile.name, userMessage, 'user');
+    
+    // SECTION B: Route to repair module if low quality
+    if (qualityData?.isLowQuality) {
+      console.log('🔧 Routing to repair module for low-quality input');
+      
+      const repairMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'buddy',
+        content: 'Let me help you with that...',
+        timestamp: new Date(),
+        isProcessing: true
+      };
+      
+      setMessages(prev => [...prev, repairMessage]);
+      
+      try {
+        const { data, error } = await supabase.functions.invoke('repair-module', {
+          body: { 
+            transcript: userMessage,
+            childProfile: childProfile,
+            qualityIssue: qualityData.reason 
+          }
+        });
+        
+        if (error) throw error;
+        
+        const clarifierResponse = data.response;
+        console.log('✅ Repair module response:', clarifierResponse);
+        
+        // Update message with clarifier response
+        setMessages(prev => prev.map(msg => 
+          msg.id === repairMessage.id 
+            ? { ...msg, content: clarifierResponse, isProcessing: false }
+            : msg
+        ));
+        
+        // Step 8: Add repair response to memory
+        addTranscript(childProfile.name, clarifierResponse, 'buddy');
+        
+        // Play clarifier response
+        await playVoice(clarifierResponse);
+        
+        return;
+        
+      } catch (error) {
+        console.error('❌ Repair module failed:', error);
+        // Fallback to simple clarifier
+        const fallbackResponse = "I didn't understand. Can you try again? 😊";
+        setMessages(prev => prev.map(msg => 
+          msg.id === repairMessage.id 
+            ? { ...msg, content: fallbackResponse, isProcessing: false }
+            : msg
+        ));
+        await playVoice(fallbackResponse);
+        return;
+      }
+    }
     
     // Step 4-F: Content intent detection
     const messageIntent = detectContentIntent(userMessage);
@@ -917,6 +1018,16 @@ export const BuddyApp = () => {
         return;
       }
       
+      // SECTION B: Implement 8-turn buffer for ask-gemini
+      const recentMessages = messages
+        .slice(-8) // Get last 8 messages
+        .map(msg => ({
+          role: msg.type === 'user' ? 'user' : 'assistant',
+          content: msg.content
+        }));
+      
+      console.log('💬 8-turn conversation buffer:', recentMessages);
+      
       // Step 8: Load learning memory and create summary for Gemini
       const learningMemory = loadLearningMemory(childProfile.name);
       const memoryContext = {
@@ -930,7 +1041,8 @@ export const BuddyApp = () => {
           .filter(t => t.type === 'user')
           .map(t => t.content)
           .join('; '),
-        preferredSentenceLen: learningMemory.preferredSentenceLen || 15
+        preferredSentenceLen: learningMemory.preferredSentenceLen || 15,
+        conversationHistory: recentMessages // Add 8-turn buffer to context
       };
       
       console.log('🧠 Step 8: Memory context for Gemini:', memoryContext);
@@ -940,7 +1052,7 @@ export const BuddyApp = () => {
         body: { 
           message: userMessage,
           childProfile: childProfile,
-          learningMemory: memoryContext  // Step 8: Inject learning context
+          learningMemory: memoryContext  // Step 8: Inject learning context with 8-turn buffer
         }
       });
       
