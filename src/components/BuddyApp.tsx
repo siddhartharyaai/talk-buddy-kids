@@ -2070,9 +2070,9 @@ export const BuddyApp = () => {
                   )}
                    <div className={`flex-1 ${message.type === 'user' ? 'text-right' : ''}`}>
                      <div className="flex items-start gap-2">
-                        <p className={`text-lg leading-relaxed font-medium flex-1 ${
-                          message.type === 'user' ? 'text-gray-700' : 'text-gray-100'
-                        } ${message.isProcessing ? 'italic opacity-75' : ''}`}>
+                         <p className={`text-lg leading-relaxed font-medium flex-1 ${
+                           message.type === 'user' ? 'text-gray-700' : 'text-gray-700'
+                         } ${message.isProcessing ? 'italic opacity-75' : ''}`}>
                          {message.content}
                          {message.isProcessing && (
                            <span className="inline-block ml-2 animate-pulse">...</span>
