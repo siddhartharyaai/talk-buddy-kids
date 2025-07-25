@@ -1084,7 +1084,7 @@ export const BuddyApp = () => {
 
   // Auto greeting when profile is loaded - Fixed with proper dependencies
   useEffect(() => {
-    if (childProfile && !hasGreeted) {
+    if (childProfile && !hasGreeted && hasConsent) {
       // Small delay to ensure component is fully mounted
       const timer = setTimeout(() => {
         sendAutoGreeting();
@@ -1092,7 +1092,7 @@ export const BuddyApp = () => {
       
       return () => clearTimeout(timer);
     }
-  }, [childProfile, hasGreeted, sendAutoGreeting]);
+  }, [childProfile, hasGreeted, hasConsent, sendAutoGreeting]);
 
   // Missing function definitions for button handlers
   const handleMicPress = async () => {
@@ -1710,7 +1710,7 @@ export const BuddyApp = () => {
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {/* Theme Toggle */}
           <ThemeToggle />
           
@@ -1723,6 +1723,17 @@ export const BuddyApp = () => {
             title="Settings"
           >
             <Settings className="w-5 h-5 text-gray-600" />
+          </Button>
+          
+          {/* Logout Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
+            title="Logout"
+          >
+            <span className="text-gray-600 font-medium text-sm">Logout</span>
           </Button>
           
           {/* Production Controls - Always visible for parents */}
@@ -1855,25 +1866,6 @@ export const BuddyApp = () => {
           )}
           
           
-          {/* Upload test story button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={async () => {
-              try {
-                toast({ title: "Uploading test story...", description: "Creating test animal story" });
-                await uploadTestStory();
-                toast({ title: "Test story uploaded!", description: "Now try asking for a story about animals" });
-              } catch (error) {
-                console.error('❌ Upload failed:', error);
-                toast({ title: "Upload failed", description: error?.message || "Unknown error", variant: "destructive" });
-              }
-            }}
-            className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
-            title="Upload Test Story"
-          >
-            📚
-          </Button>
           
           
           {/* Test get-content function */}
