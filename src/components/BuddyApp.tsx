@@ -1947,8 +1947,8 @@ export const BuddyApp = () => {
         </div>
       </header>
 
-      {/* Chat Area - FIXED: Added pt-20 for fixed header and pb-32 for fixed bottom controls */}
-      <div className="flex-1 p-4 overflow-y-auto pb-32 pt-20">
+      {/* Chat Area - FIXED: Added pt-20 for fixed header and pb-40 for fixed bottom controls */}
+      <div className="flex-1 p-4 overflow-y-auto pb-40 pt-20">
         <div className="max-w-2xl mx-auto space-y-4">
           {/* Welcome Message */}
           <Card className="buddy-card p-6 buddy-gradient">
