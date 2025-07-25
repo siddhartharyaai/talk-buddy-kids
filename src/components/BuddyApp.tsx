@@ -1703,6 +1703,57 @@ export const BuddyApp = () => {
             <Settings className="w-5 h-5 text-primary" />
           </Button>
           
+          {/* Production Controls - Always visible for parents */}
+          <div className="flex gap-1 mr-2">
+            {/* Lock Controls for Parents - Always visible */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                // Test daily limit lock
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                tomorrow.setHours(6, 30, 0, 0);
+                localStorage.setItem('micLockedUntil', tomorrow.getTime().toString());
+                toast({ title: "Daily limit set!", description: "Mic locked until tomorrow 6:30 AM" });
+              }}
+              className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
+              title="Set Daily Limit Lock"
+            >
+              🔒
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm" 
+              onClick={() => {
+                // Test 30-second break lock
+                const breakEndTime = Date.now() + 30000;
+                localStorage.setItem('breakLockedUntil', breakEndTime.toString());
+                toast({ title: "Break time set!", description: "Mic locked for 30 seconds" });
+              }}
+              className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
+              title="Set 30s Break Lock"
+            >
+              ⏸️
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                // Clear all locks
+                localStorage.removeItem('micLockedUntil');
+                localStorage.removeItem('breakLockedUntil');
+                toast({ title: "Locks cleared!", description: "Mic is now unlocked" });
+              }}
+              className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
+              title="Clear All Locks"
+            >
+              🔓
+            </Button>
+          </div>
+          
           {/* Step 10: Hide test buttons in production build v1.0.0 */}
           {import.meta.env.DEV && (
             <div className="flex gap-1 mr-2">
@@ -1804,7 +1855,7 @@ export const BuddyApp = () => {
                 toast({ title: "Upload failed", description: error?.message || "Unknown error", variant: "destructive" });
               }
             }}
-            className="p-2 hover:bg-gray-100 rounded-full"
+            className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
             title="Upload Test Story"
           >
             📚
@@ -1830,7 +1881,7 @@ export const BuddyApp = () => {
                 toast({ title: "Test failed", description: error?.message || "Unknown error", variant: "destructive" });
               }
             }}
-            className="p-2 hover:bg-gray-100 rounded-full"
+            className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
             title="Test Get Content"
           >
             🔍
@@ -1855,64 +1906,18 @@ export const BuddyApp = () => {
                 toast({ title: "Storage test failed", description: error?.message || "Unknown error", variant: "destructive" });
               }
             }}
-            className="p-2 hover:bg-gray-100 rounded-full"
+            className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
             title="Test Storage Access"
           >
             💾
           </Button>
           
-          {/* Test buttons for smoke tests */}
-          <Button
-            variant="ghost" 
-            size="sm"
-            onClick={() => {
-              // Test daily limit lock
-              const tomorrow = new Date();
-              tomorrow.setDate(tomorrow.getDate() + 1);
-              tomorrow.setHours(6, 30, 0, 0);
-              localStorage.setItem('micLockedUntil', tomorrow.getTime().toString());
-              toast({ title: "Daily limit triggered!", description: "Mic now locked until tomorrow 6:30 AM" });
-            }}
-            className="p-2 hover:bg-gray-100 rounded-full"
-            title="Test Daily Limit Lock"
-          >
-            🔒
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="sm" 
-            onClick={() => {
-              // Test 30-second break lock
-              const breakEndTime = Date.now() + 30000;
-              localStorage.setItem('breakLockedUntil', breakEndTime.toString());
-              toast({ title: "Break time triggered!", description: "Mic locked for 30 seconds" });
-            }}
-            className="p-2 hover:bg-gray-100 rounded-full"
-            title="Test 30s Break Lock"
-          >
-            ⏸️
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              // Clear all locks
-              localStorage.removeItem('micLockedUntil');
-              localStorage.removeItem('breakLockedUntil');
-              toast({ title: "Locks cleared!", description: "Mic is now unlocked" });
-            }}
-            className="p-2 hover:bg-gray-100 rounded-full"
-            title="Clear All Locks"
-          >
-            🔓
-          </Button>
+          {/* Dev test buttons removed - lock controls now in production section above */}
           <Button
             variant="ghost"
             size="sm"
             onClick={handleLogout}
-            className="p-2 hover:bg-red-100 rounded-full text-red-600"
+            className="p-2 hover:bg-destructive/20 rounded-full text-destructive transition-all duration-300 hover:scale-110"
             title="Logout"
           >
             🚪

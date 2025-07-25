@@ -6,138 +6,131 @@
 
 @layer base {
   :root {
-    /* Kid-friendly color palette */
-    --background: 220 25% 98%;
-    --foreground: 230 15% 25%;
+    /* Soft pastel color palette for kids */
+    --background: 220 20% 98%;
+    --foreground: 220 15% 30%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 230 15% 25%;
+    --card: 220 25% 97%;
+    --card-foreground: 220 15% 25%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 230 15% 25%;
+    --popover: 220 25% 97%;
+    --popover-foreground: 220 15% 25%;
 
-    /* Friendly blue primary */
-    --primary: 210 100% 60%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 210 100% 70%;
+    /* Soft pastel blue primary */
+    --primary: 200 85% 75%;
+    --primary-foreground: 220 20% 15%;
+    --primary-glow: 200 85% 85%;
 
-    /* Soft purple secondary */
-    --secondary: 270 60% 85%;
-    --secondary-foreground: 270 50% 25%;
+    /* Soft lavender secondary */
+    --secondary: 260 40% 88%;
+    --secondary-foreground: 260 30% 25%;
 
-    /* Warm background tones */
-    --muted: 45 30% 95%;
-    --muted-foreground: 230 10% 45%;
+    /* Warm cream background tones */
+    --muted: 40 25% 95%;
+    --muted-foreground: 220 10% 50%;
 
-    /* Cheerful green accent */
-    --accent: 140 60% 70%;
-    --accent-foreground: 140 80% 20%;
+    /* Soft mint green accent */
+    --accent: 150 35% 80%;
+    --accent-foreground: 150 50% 20%;
 
-    /* Soft red for alerts */
-    --destructive: 0 70% 65%;
-    --destructive-foreground: 0 0% 100%;
+    /* Soft coral for alerts */
+    --destructive: 10 60% 75%;
+    --destructive-foreground: 10 80% 15%;
 
-    --border: 220 20% 88%;
-    --input: 220 20% 92%;
-    --ring: 210 100% 60%;
+    --border: 220 20% 90%;
+    --input: 220 20% 94%;
+    --ring: 200 85% 75%;
 
     --radius: 1rem;
 
-    /* Kid-specific colors */
-    --buddy-orange: 25 95% 65%;
-    --buddy-pink: 320 60% 80%;
-    --buddy-yellow: 50 95% 75%;
+    /* Soft pastel buddy colors */
+    --buddy-orange: 25 70% 80%;
+    --buddy-pink: 320 50% 85%;
+    --buddy-yellow: 50 70% 85%;
     
-    /* Gradients */
-    --gradient-buddy: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-background: linear-gradient(180deg, hsl(var(--background)), hsl(220 20% 96%));
-    --gradient-recording: linear-gradient(45deg, hsl(var(--accent)), hsl(var(--buddy-yellow)));
+    /* Gentle gradients */
+    --gradient-buddy: linear-gradient(135deg, hsl(200 85% 75%), hsl(200 85% 85%));
+    --gradient-background: linear-gradient(180deg, hsl(220 20% 98%), hsl(220 25% 96%));
+    --gradient-recording: linear-gradient(45deg, hsl(150 35% 80%), hsl(50 70% 85%));
     
-    /* Shadows */
-    --shadow-soft: 0 4px 20px -4px hsl(var(--primary) / 0.15);
-    --shadow-recording: 0 0 30px hsl(var(--accent) / 0.4);
-    --shadow-chat: 0 2px 12px -2px hsl(var(--foreground) / 0.08);
+    /* Soft shadows */
+    --shadow-soft: 0 4px 20px -4px hsl(200 85% 75% / 0.15);
+    --shadow-recording: 0 0 25px hsl(150 35% 80% / 0.3);
+    --shadow-chat: 0 2px 12px -2px hsl(220 15% 30% / 0.08);
     
     /* Animation timing */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 220 25% 97%;
+    --sidebar-foreground: 220 15% 30%;
+    --sidebar-primary: 200 85% 75%;
+    --sidebar-primary-foreground: 220 20% 15%;
+    --sidebar-accent: 220 20% 94%;
+    --sidebar-accent-foreground: 220 15% 25%;
+    --sidebar-border: 220 20% 90%;
+    --sidebar-ring: 200 85% 75%;
   }
 
   .dark {
-    /* Kid-friendly dark theme - softer, warmer colors */
-    --background: 235 20% 8%;
+    /* Soft dark theme with good contrast */
+    --background: 220 25% 8%;
     --foreground: 220 20% 95%;
 
-    --card: 235 15% 12%;
+    --card: 220 20% 12%;
     --card-foreground: 220 20% 95%;
 
-    --popover: 235 15% 12%;
+    --popover: 220 20% 12%;
     --popover-foreground: 220 20% 95%;
 
-    /* Friendly blue primary in dark mode */
-    --primary: 210 100% 70%;
-    --primary-foreground: 235 20% 8%;
-    --primary-glow: 210 100% 80%;
+    /* Soft pastel primary in dark mode */
+    --primary: 200 70% 70%;
+    --primary-foreground: 220 25% 8%;
+    --primary-glow: 200 70% 80%;
 
-    /* Soft purple secondary for dark */
-    --secondary: 270 40% 20%;
-    --secondary-foreground: 270 60% 90%;
+    /* Soft lavender secondary for dark */
+    --secondary: 260 30% 25%;
+    --secondary-foreground: 260 40% 90%;
 
-    /* Warm muted tones */
-    --muted: 235 15% 15%;
-    --muted-foreground: 220 15% 70%;
+    /* Muted tones for dark */
+    --muted: 220 20% 15%;
+    --muted-foreground: 220 15% 75%;
 
-    /* Bright green accent for dark */
-    --accent: 140 60% 60%;
-    --accent-foreground: 140 80% 10%;
+    /* Soft mint accent for dark */
+    --accent: 150 30% 60%;
+    --accent-foreground: 150 50% 10%;
 
-    /* Soft red for alerts in dark */
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 100%;
+    /* Soft coral for alerts in dark */
+    --destructive: 10 50% 65%;
+    --destructive-foreground: 10 80% 95%;
 
-    --border: 235 15% 20%;
-    --input: 235 15% 18%;
-    --ring: 210 100% 70%;
+    --border: 220 20% 20%;
+    --input: 220 20% 18%;
+    --ring: 200 70% 70%;
 
-    /* Enhanced kid colors for dark mode */
-    --buddy-orange: 25 85% 60%;
-    --buddy-pink: 320 50% 70%;
-    --buddy-yellow: 50 85% 65%;
+    /* Enhanced buddy colors for dark mode */
+    --buddy-orange: 25 60% 70%;
+    --buddy-pink: 320 40% 75%;
+    --buddy-yellow: 50 60% 75%;
     
     /* Dark mode gradients */
-    --gradient-buddy: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-background: linear-gradient(180deg, hsl(var(--background)), hsl(235 18% 10%));
-    --gradient-recording: linear-gradient(45deg, hsl(var(--accent)), hsl(var(--buddy-yellow)));
+    --gradient-buddy: linear-gradient(135deg, hsl(200 70% 70%), hsl(200 70% 80%));
+    --gradient-background: linear-gradient(180deg, hsl(220 25% 8%), hsl(220 20% 10%));
+    --gradient-recording: linear-gradient(45deg, hsl(150 30% 60%), hsl(50 60% 75%));
     
-    /* Dark shadows with glow effects */
-    --shadow-soft: 0 4px 20px -4px hsl(var(--primary) / 0.3);
-    --shadow-recording: 0 0 30px hsl(var(--accent) / 0.6);
-    --shadow-chat: 0 2px 12px -2px hsl(var(--foreground) / 0.15);
+    /* Dark shadows with better visibility */
+    --shadow-soft: 0 4px 20px -4px hsl(200 70% 70% / 0.25);
+    --shadow-recording: 0 0 25px hsl(150 30% 60% / 0.4);
+    --shadow-chat: 0 2px 12px -2px hsl(220 20% 95% / 0.15);
 
-    --sidebar-background: 235 20% 8%;
+    --sidebar-background: 220 25% 8%;
     --sidebar-foreground: 220 20% 95%;
-    --sidebar-primary: 210 100% 70%;
-    --sidebar-primary-foreground: 235 20% 8%;
-    --sidebar-accent: 235 15% 15%;
+    --sidebar-primary: 200 70% 70%;
+    --sidebar-primary-foreground: 220 25% 8%;
+    --sidebar-accent: 220 20% 15%;
     --sidebar-accent-foreground: 220 20% 95%;
-    --sidebar-border: 235 15% 20%;
-    --sidebar-ring: 210 100% 70%;
+    --sidebar-border: 220 20% 20%;
+    --sidebar-ring: 200 70% 70%;
   }
 }
 
