@@ -1722,7 +1722,7 @@ export const BuddyApp = () => {
             className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
             title="Settings"
           >
-            <Settings className="w-5 h-5 text-primary" />
+            <Settings className="w-5 h-5 text-gray-600" />
           </Button>
           
           {/* Production Controls - Always visible for parents */}
@@ -1854,14 +1854,6 @@ export const BuddyApp = () => {
             </div>
           )}
           
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowSettings(true)}
-            className="p-2 hover:bg-gray-100 rounded-full"
-          >
-            <Settings className="w-6 h-6 text-gray-600" />
-          </Button>
           
           {/* Upload test story button */}
           <Button
