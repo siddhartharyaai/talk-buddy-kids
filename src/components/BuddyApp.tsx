@@ -1116,7 +1116,7 @@ export const BuddyApp = () => {
     }
   }, [childProfile, playVoice, addTranscript, loadLearningMemory, updateLearningMemory]);
 
-  // Stop speaking function
+  // Enhanced stop speaking function for barge-in (SECTION C)
   const stopSpeaking = useCallback(() => {
     console.log('🛑 Stop speaking requested');
     
@@ -1128,14 +1128,14 @@ export const BuddyApp = () => {
       currentAudioRef.current = null;
     }
     
-    // Reset speaking state
+    // Reset speaking state immediately for fast response
     setIsSpeaking(false);
     
-    // Try to stop streaming TTS if available
+    // Stop streaming TTS immediately
     try {
-      import('../utils/streamingTTS').then(({ cleanupStreamingTTS }) => {
-        cleanupStreamingTTS();
-        console.log('✅ Streaming TTS stopped');
+      import('../utils/streamingTTS').then(({ stopStreamingTTS }) => {
+        stopStreamingTTS();
+        console.log('✅ Streaming TTS stopped immediately');
       }).catch(error => {
         console.log('ℹ️ Streaming TTS not available:', error.message);
       });
@@ -1251,7 +1251,7 @@ export const BuddyApp = () => {
     }
   }, [childProfile, hasGreeted, hasConsent, sendAutoGreeting]);
 
-  // Missing function definitions for button handlers
+  // Enhanced handleMicPress with barge-in functionality  
   const handleMicPress = async () => {
     if (!hasConsent) {
       setShowConsent(true);
@@ -1264,6 +1264,21 @@ export const BuddyApp = () => {
         title: "Almost ready!",
         description: "Please set up your child's profile first.",
       });
+      return;
+    }
+
+    // SECTION C: BARGE-IN LOGIC - If Buddy is speaking, stop and start recording
+    if (isSpeaking) {
+      console.log('🛑 Barge-in detected - stopping speech and starting recording');
+      
+      // Stop current speech immediately
+      stopSpeaking();
+      
+      // Small delay to ensure speech stops before starting recording
+      setTimeout(() => {
+        startRecordingAfterBargein();
+      }, 100);
+      
       return;
     }
 
@@ -1290,8 +1305,27 @@ export const BuddyApp = () => {
       return;
     }
     
-    console.log('🎤 Starting recording...');
+    // Normal recording start
+    startRecording();
+  };
+
+  // Separate function for barge-in recording
+  const startRecordingAfterBargein = async () => {
+    console.log('🎤 Starting recording after barge-in...');
     setIsRecording(true);
+    
+    // Add visual feedback for barge-in
+    toast({
+      title: "Got it! 👂",
+      description: "I stopped talking - go ahead!",
+      duration: 1500
+    });
+    
+    startRecording();
+  };
+
+  // Core recording function
+  const startRecording = async () => {
     
     try {
       // Request microphone permission and start recording
@@ -2277,17 +2311,17 @@ export const BuddyApp = () => {
             onMouseUp={handleMicRelease}
             onTouchStart={handleMicPress}
             onTouchEnd={handleMicRelease}
-            disabled={isSpeaking}
+            disabled={false} // SECTION C: Remove disabled state to allow barge-in
           >
-            <Mic className={`w-8 h-8 text-white ${isRecording ? 'animate-bounce' : ''}`} />
+            <Mic className={`w-8 h-8 text-white ${isRecording ? 'animate-bounce' : isSpeaking ? 'animate-pulse' : ''}`} />
           </Button>
         </div>
         
-        {/* Hint Text with enhanced animations */}
+        {/* Hint Text with enhanced animations and barge-in instructions */}
         <p className="text-center text-muted-foreground text-sm mt-4 animate-smooth-fade-in transition-all duration-300">
           {!hasConsent ? "Click to get started" :
            !childProfile ? "Set up profile first" :
-           isSpeaking ? "🔊 Buddy is speaking..." :
+           isSpeaking ? "🔊 Press to interrupt me!" :
            isRecording ? "🎤 Listening... Release to stop" : 
            "Hold to speak"}
         </p>

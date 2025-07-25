@@ -7,6 +7,7 @@ export class StreamingTTSPlayer {
   private audioQueue: { buffer: ArrayBuffer; sequence: number }[] = [];
   private isPlaying = false;
   private currentSequence = 0;
+  private currentSource: AudioBufferSourceNode | null = null; // Track current playing source
 
   constructor() {
     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -103,7 +104,11 @@ export class StreamingTTSPlayer {
       source.buffer = audioBuffer;
       source.connect(this.audioContext!.destination);
       
+      // Track current source for immediate stopping
+      this.currentSource = source;
+      
       source.onended = () => {
+        this.currentSource = null;
         this.playNextChunk(); // Play next chunk when current ends
       };
 
@@ -152,7 +157,30 @@ export class StreamingTTSPlayer {
     }
   }
 
+  // SECTION C: Immediate stop function for barge-in
+  stop(): void {
+    console.log('🛑 Stopping streaming TTS immediately');
+    
+    // Stop current audio source immediately
+    if (this.currentSource) {
+      this.currentSource.stop();
+      this.currentSource = null;
+    }
+    
+    // Clear audio queue to prevent further playback
+    this.audioQueue = [];
+    this.isPlaying = false;
+    
+    // Reset sequence counter
+    this.currentSequence = 0;
+    
+    console.log('✅ Streaming TTS stopped');
+  }
+
   disconnect(): void {
+    // Stop any current playback before disconnecting
+    this.stop();
+    
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -161,9 +189,6 @@ export class StreamingTTSPlayer {
       this.audioContext.close();
       this.audioContext = null;
     }
-    this.audioQueue = [];
-    this.isPlaying = false;
-    this.currentSequence = 0;
   }
 }
 
@@ -182,5 +207,12 @@ export const cleanupStreamingTTS = (): void => {
   if (streamingPlayer) {
     streamingPlayer.disconnect();
     streamingPlayer = null;
+  }
+};
+
+// SECTION C: Export stop function for immediate barge-in
+export const stopStreamingTTS = (): void => {
+  if (streamingPlayer) {
+    streamingPlayer.stop();
   }
 };
