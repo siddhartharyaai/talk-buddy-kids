@@ -317,8 +317,8 @@ export const BuddyApp = () => {
           });
         }
         
-        // Get AI response from Buddy
-        await getBuddyResponse(transcribedText);
+        // Get AI response from Buddy (run in background, don't block)
+        getBuddyResponse(transcribedText); // Don't await - run async
       }
       
     } catch (error) {
