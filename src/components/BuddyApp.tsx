@@ -51,6 +51,16 @@ export interface LearningMemory {
   transcripts: Array<{content: string, timestamp: number, type: 'user' | 'buddy'}>;
 }
 
+// SECTION E: Extended memory interface
+export interface ExtendedMemory {
+  recentTopics: string[];
+  favouriteTopics: Record<string, number>;
+  struggleWords: string[];
+  sessionSummary: string;
+  lastMemoryUpdate: string | null;
+  sessionCount: number;
+}
+
 // Health-aware usage rules interface
 export interface UsageRules {
   timezone: string;
@@ -1072,24 +1082,40 @@ export const BuddyApp = () => {
       
       console.log('💬 8-turn conversation buffer:', recentMessages);
       
-      // Step 8: Load learning memory and create summary for Gemini
+      // SECTION E: Enhanced memory system with extended_memory integration
       const learningMemory = loadLearningMemory(childProfile.name);
+      const extendedMemory = await loadExtendedMemory(childProfile);
+      
+      // Combine traditional and extended memory for context
       const memoryContext = {
         sessions: learningMemory.sessions,
-        favouriteTopics: Object.entries(learningMemory.favouriteTopics)
-          .sort(([,a], [,b]) => b - a)
-          .slice(0, 5)
-          .map(([topic, count]) => `${topic} (${count}x)`),
-        recentTopics: learningMemory.transcripts
-          .slice(0, 10)
-          .filter(t => t.type === 'user')
-          .map(t => t.content)
-          .join('; '),
+        // SECTION E: Use favouriteTopics from extended_memory if available
+        favouriteTopics: extendedMemory?.favouriteTopics ? 
+          Object.entries(extendedMemory.favouriteTopics)
+            .sort(([,a], [,b]) => (b as number) - (a as number))
+            .slice(0, 5)
+            .map(([topic, count]) => `${topic} (${count}x)`) :
+          Object.entries(learningMemory.favouriteTopics)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 5)
+            .map(([topic, count]) => `${topic} (${count}x)`),
+        // SECTION E: Use recentTopics from extended_memory (limit 6)
+        recentTopics: extendedMemory?.recentTopics?.length > 0 ?
+          extendedMemory.recentTopics.join('; ') :
+          learningMemory.transcripts
+            .slice(0, 10)
+            .filter(t => t.type === 'user')
+            .map(t => t.content)
+            .join('; '),
         preferredSentenceLen: learningMemory.preferredSentenceLen || 15,
-        conversationHistory: recentMessages // Add 8-turn buffer to context
+        conversationHistory: recentMessages, // Add 8-turn buffer to context
+        // SECTION E: Add extended memory fields
+        struggleWords: extendedMemory?.struggleWords || [],
+        sessionSummary: extendedMemory?.sessionSummary || '',
+        sessionCount: extendedMemory?.sessionCount || 0
       };
       
-      console.log('🧠 Step 8: Memory context for Gemini:', memoryContext);
+      console.log('🧠 Enhanced memory context for Gemini:', memoryContext);
       
       // Call ask-gemini edge function with enhanced context
       const { data, error } = await supabase.functions.invoke('ask-gemini', {
@@ -1132,6 +1158,9 @@ export const BuddyApp = () => {
       
       // Step 6: Start audio generation immediately (parallel with UI update)
       playVoice(aiResponse); // Start TTS generation right away
+      
+      // SECTION E: Extract nouns and update memory after every bot reply
+      extractAndUpdateMemory(aiResponse, childProfile);
       
       // Step 6.5: Hide dev toasts behind import.meta.env.DEV
       if (import.meta.env.DEV) {
@@ -1185,6 +1214,82 @@ export const BuddyApp = () => {
       });
     } catch (error) {
       console.log('ℹ️ Failed to stop streaming TTS:', error);
+    }
+  }, []);
+
+  // SECTION E: Enhanced memory system with noun extraction
+  const extractAndUpdateMemory = useCallback(async (botResponse: string, profile: ChildProfile) => {
+    try {
+      console.log('📝 Extracting nouns from bot response:', botResponse.slice(0, 100));
+      
+      // Call noun extraction edge function
+      const { data, error } = await supabase.functions.invoke('noun-extract', {
+        body: { text: botResponse }
+      });
+      
+      if (error) {
+        console.error('❌ Noun extraction failed:', error);
+        return;
+      }
+      
+      const extractedNouns = data.nouns || [];
+      console.log('✅ Extracted nouns:', extractedNouns);
+      
+      if (extractedNouns.length > 0) {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        // Update extended memory using database function
+        const { error: updateError } = await supabase.rpc('update_child_memory', {
+          profile_user_id: user.id,
+          new_topics: extractedNouns
+        });
+        
+        if (updateError) {
+          console.error('❌ Memory update failed:', updateError);
+        } else {
+          console.log(`✅ Updated memory with ${extractedNouns.length} topics`);
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Memory extraction and update failed:', error);
+    }
+  }, []);
+
+  // SECTION E: Enhanced memory loading with extended_memory support
+  const loadExtendedMemory = useCallback(async (profile: ChildProfile): Promise<ExtendedMemory | null> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      
+      const { data, error } = await supabase
+        .from('child_profiles')
+        .select('extended_memory')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (error) {
+        console.error('❌ Failed to load extended memory:', error);
+        return null;
+      }
+      
+      const extendedMemory = (data.extended_memory as unknown as ExtendedMemory) || {
+        recentTopics: [],
+        favouriteTopics: {},
+        struggleWords: [],
+        sessionSummary: "",
+        lastMemoryUpdate: null,
+        sessionCount: 0
+      };
+      
+      console.log('📚 Loaded extended memory:', extendedMemory);
+      return extendedMemory;
+      
+    } catch (error) {
+      console.error('❌ Extended memory loading failed:', error);
+      return null;
     }
   }, []);
 
