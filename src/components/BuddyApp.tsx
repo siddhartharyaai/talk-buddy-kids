@@ -1191,7 +1191,8 @@ export const BuddyApp = () => {
 
   // Enhanced stop speaking function for barge-in (SECTION C)
   const stopSpeaking = useCallback(() => {
-    console.log('🛑 Stop speaking requested');
+    const stopStartTime = performance.now();
+    console.log('🛑 Stop speaking requested at:', stopStartTime);
     
     // Stop current audio if playing
     if (currentAudioRef.current) {
@@ -1208,7 +1209,8 @@ export const BuddyApp = () => {
     try {
       import('../utils/streamingTTS').then(({ stopStreamingTTS }) => {
         stopStreamingTTS();
-        console.log('✅ Streaming TTS stopped immediately');
+        const stopEndTime = performance.now();
+        console.log(`✅ Streaming TTS stopped in ${stopEndTime - stopStartTime}ms`);
       }).catch(error => {
         console.log('ℹ️ Streaming TTS not available:', error.message);
       });
@@ -1418,13 +1420,16 @@ export const BuddyApp = () => {
 
     // SECTION C: BARGE-IN LOGIC - If Buddy is speaking, stop and start recording
     if (isSpeaking) {
-      console.log('🛑 Barge-in detected - stopping speech and starting recording');
+      const bargeInStartTime = performance.now();
+      console.log('🛑 Barge-in detected - stopping speech and starting recording at:', bargeInStartTime);
       
       // Stop current speech immediately
       stopSpeaking();
       
       // Small delay to ensure speech stops before starting recording
       setTimeout(() => {
+        const bargeInEndTime = performance.now();
+        console.log(`⚡ Barge-in completed in ${bargeInEndTime - bargeInStartTime}ms (target: <150ms)`);
         startRecordingAfterBargein();
       }, 100);
       
@@ -1820,6 +1825,100 @@ export const BuddyApp = () => {
     
     return results;
   };
+
+  // SECTION 4: Barge-in Testing Suite
+  const runBargeInTests = useCallback(async () => {
+    console.log('🧪 Starting barge-in test suite...');
+    const results = {
+      testA: { pass: false, latency: 0, notes: '' },
+      testB: { pass: false, notes: '' },
+      testC: { pass: false, notes: '' }
+    };
+
+    try {
+      // Test A: Long answer interrupt
+      console.log('🧪 TEST A: Long answer interrupt');
+      
+      // Simulate bot speaking
+      setIsSpeaking(true);
+      console.log('🎵 Simulating bot speech...');
+      
+      // Wait 2 seconds then interrupt
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const interruptStart = performance.now();
+      await handleMicPress(); // This should trigger barge-in
+      const interruptEnd = performance.now();
+      
+      const interruptLatency = interruptEnd - interruptStart;
+      results.testA.latency = Math.round(interruptLatency);
+      results.testA.pass = interruptLatency < 150;
+      results.testA.notes = `Interrupt latency: ${results.testA.latency}ms (target: <150ms)`;
+      
+      console.log(`✅ TEST A: ${results.testA.pass ? 'PASS' : 'FAIL'} - ${results.testA.notes}`);
+      
+      // Reset state
+      setIsSpeaking(false);
+      setIsRecording(false);
+      
+      // Test B: Silent mic tap
+      console.log('🧪 TEST B: Silent mic tap');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      try {
+        await handleMicPress();
+        results.testB.pass = true;
+        results.testB.notes = 'Normal recording started without crash';
+        console.log('✅ TEST B: PASS - Normal recording started');
+      } catch (error) {
+        results.testB.pass = false;
+        results.testB.notes = `Error: ${error.message}`;
+        console.log('❌ TEST B: FAIL -', error);
+      }
+      
+      setIsRecording(false);
+      
+      // Test C: Rapid cycles
+      console.log('🧪 TEST C: 20 rapid stop/start cycles');
+      let cycleErrors = 0;
+      
+      for (let i = 0; i < 20; i++) {
+        try {
+          setIsSpeaking(true);
+          stopSpeaking();
+          setIsSpeaking(false);
+          await new Promise(resolve => setTimeout(resolve, 10)); // 10ms between cycles
+        } catch (error) {
+          cycleErrors++;
+          console.log(`❌ Cycle ${i + 1} error:`, error);
+        }
+      }
+      
+      results.testC.pass = cycleErrors === 0;
+      results.testC.notes = `${cycleErrors} errors in 20 cycles`;
+      console.log(`✅ TEST C: ${results.testC.pass ? 'PASS' : 'FAIL'} - ${results.testC.notes}`);
+      
+    } catch (error) {
+      console.error('❌ Test suite failed:', error);
+    }
+    
+    // Summary
+    console.log('\n🏁 BARGE-IN TEST RESULTS:');
+    console.log(`TEST A (Long answer interrupt): ${results.testA.pass ? '✅ PASS' : '❌ FAIL'} - ${results.testA.notes}`);
+    console.log(`TEST B (Silent mic tap): ${results.testB.pass ? '✅ PASS' : '❌ FAIL'} - ${results.testB.notes}`);
+    console.log(`TEST C (Rapid cycles): ${results.testC.pass ? '✅ PASS' : '❌ FAIL'} - ${results.testC.notes}`);
+    
+    const allPassed = results.testA.pass && results.testB.pass && results.testC.pass;
+    console.log(`\n🎯 OVERALL: ${allPassed ? '✅ ALL TESTS PASSED' : '❌ SOME TESTS FAILED'}`);
+    
+    toast({
+      title: `Barge-in Tests ${allPassed ? 'Passed' : 'Failed'}`,
+      description: `A:${results.testA.pass?'✅':'❌'} B:${results.testB.pass?'✅':'❌'} C:${results.testC.pass?'✅':'❌'}`,
+      duration: 5000
+    });
+    
+    return results;
+  }, [handleMicPress, stopSpeaking, toast]);
 
   // Test functions - Streaming TTS implementation  
   const testSTT = () => console.log('STT test');
