@@ -22,6 +22,7 @@ export type Database = {
           created_at: string
           daily_telemetry: Json | null
           energy_level: string
+          extended_memory: Json | null
           gender: string
           id: string
           interests: string[] | null
@@ -39,6 +40,7 @@ export type Database = {
           created_at?: string
           daily_telemetry?: Json | null
           energy_level?: string
+          extended_memory?: Json | null
           gender: string
           id?: string
           interests?: string[] | null
@@ -56,6 +58,7 @@ export type Database = {
           created_at?: string
           daily_telemetry?: Json | null
           energy_level?: string
+          extended_memory?: Json | null
           gender?: string
           id?: string
           interests?: string[] | null
@@ -73,9 +76,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      clean_old_memory_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       transcribe_audio: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      update_child_memory: {
+        Args: {
+          profile_user_id: string
+          new_topics: string[]
+          struggle_words?: string[]
+          session_summary?: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
