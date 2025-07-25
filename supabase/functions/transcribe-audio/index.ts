@@ -80,11 +80,27 @@ serve(async (req) => {
     
     const audioBlob = new Blob([binary], { type: mimeType });
     formData.append('file', audioBlob, fileName);
+    
+    // Optimized settings for children's speech
     formData.append('model', 'nova-2');
     formData.append('language', 'multi');
     formData.append('smart_format', 'true');
     formData.append('punctuate', 'true');
     formData.append('diarize', 'false');
+    
+    // Enhanced settings for children's speech recognition
+    formData.append('filler_words', 'true'); // Keep um, uh sounds children make
+    formData.append('multichannel', 'false');
+    formData.append('alternatives', '3'); // Get multiple alternatives for unclear speech
+    formData.append('profanity_filter', 'false'); // Don't filter words children might mispronounce
+    formData.append('redact', 'false');
+    formData.append('search', 'false');
+    formData.append('tag', 'child-speech');
+    
+    // Audio enhancement for children
+    formData.append('detect_language', 'true');
+    formData.append('detect_topics', 'false');
+    formData.append('summarize', 'false');
 
     // Call Deepgram API using their file transcription endpoint
     const deepgramResponse = await fetch(
@@ -113,10 +129,39 @@ serve(async (req) => {
     const result = await deepgramResponse.json();
     console.log('📝 Deepgram response:', result);
 
-    // Extract transcript text
-    const text = result?.results?.channels?.[0]?.alternatives?.[0]?.transcript?.trim() || "";
+    // Extract transcript text with improved handling for children's speech
+    const alternatives = result?.results?.channels?.[0]?.alternatives || [];
+    let text = "";
     
-    console.log(`✅ Transcription result: "${text}"`);
+    if (alternatives.length > 0) {
+      // Try the best alternative first
+      text = alternatives[0]?.transcript?.trim() || "";
+      
+      // If first alternative is empty or very short, try others
+      if (text.length < 2 && alternatives.length > 1) {
+        for (let i = 1; i < alternatives.length; i++) {
+          const altText = alternatives[i]?.transcript?.trim() || "";
+          if (altText.length >= 2) {
+            text = altText;
+            console.log(`📝 Using alternative ${i + 1}: "${text}"`);
+            break;
+          }
+        }
+      }
+    }
+    
+    // Enhanced fallback handling for children's unclear speech
+    if (!text || text.length < 1) {
+      console.log('⚠️ Empty transcription, audio may be unclear or too short');
+      // Return a more helpful message for children
+      text = "I didn't catch that. Can you try speaking a bit louder?";
+    } else if (text.length < 3) {
+      console.log(`⚠️ Very short transcription: "${text}" - might be unclear speech`);
+      // For very short unclear results, ask for clarification
+      text = `Did you say "${text}"? Can you say that again?`;
+    }
+    
+    console.log(`✅ Final transcription result: "${text}"`);
 
     return new Response(
       JSON.stringify({ text }),

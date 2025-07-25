@@ -297,7 +297,7 @@ export const BuddyApp = () => {
       
       console.log('📝 Transcription response:', data);
       
-      const transcribedText = data.text || '[Could not transcribe audio]';
+      const transcribedText = data.text || "I'm having trouble hearing you. Can you try speaking closer to your device?";
       
       // Update the message with transcribed text
       setMessages(prev => prev.map(msg => 
