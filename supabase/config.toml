@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.repair-module]
 verify_jwt = false
+
+[functions.noun-extract]
+verify_jwt = false
