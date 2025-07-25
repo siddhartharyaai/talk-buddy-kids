@@ -46,14 +46,19 @@ serve(async (req) => {
       throw new Error('Invalid audio data format');
     }
 
-    // Prepare form data for Deepgram (supports various audio formats)
+    // Prepare form data for Deepgram API (supports WebM format)
     const formData = new FormData();
     const audioBlob = new Blob([binary], { type: 'audio/webm' });
-    formData.append('file', audioBlob, 'audio.webm');
+    formData.append('file', audioBlob, 'recording.webm');
+    formData.append('model', 'nova-2');
+    formData.append('language', 'multi');
+    formData.append('smart_format', 'true');
+    formData.append('punctuate', 'true');
+    formData.append('diarize', 'false');
 
-    // Call Deepgram API with Nova-3 for multi-language support
+    // Call Deepgram API using their file transcription endpoint
     const deepgramResponse = await fetch(
-      "https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&language=multi&punctuate=true&diarize=false&utterances=false",
+      "https://api.deepgram.com/v1/listen",
       {
         method: "POST",
         headers: {
