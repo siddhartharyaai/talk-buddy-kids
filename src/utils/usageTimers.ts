@@ -52,7 +52,6 @@ export const shouldBreak = (
   timezone: string
 ): boolean => {
   const currentTime = Date.now();
-  const timeSinceLastBreak = currentTime - telemetry.lastBreakTime;
   const breakIntervalMs = usageRules.breakIntervalMin * 60 * 1000;
   
   // If it's a new day, reset break timer
@@ -60,7 +59,14 @@ export const shouldBreak = (
     return false;
   }
   
-  // Check if break interval has passed
+  // Don't trigger break if no break time has been set yet (first use)
+  if (telemetry.lastBreakTime === 0) {
+    return false;
+  }
+  
+  const timeSinceLastBreak = currentTime - telemetry.lastBreakTime;
+  
+  // Check if break interval has passed and user has actually used the app
   return timeSinceLastBreak >= breakIntervalMs && telemetry.secondsSpoken > 0;
 };
 
