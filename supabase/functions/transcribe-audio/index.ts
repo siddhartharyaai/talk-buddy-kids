@@ -46,26 +46,41 @@ serve(async (req) => {
       throw new Error('Invalid audio data format');
     }
 
-    // Prepare form data for Deepgram API (supports WebM format)
+    // Handle multiple audio formats for cross-platform compatibility
     const formData = new FormData();
-    const audioBlob = new Blob([binary], { type: 'audio/webm' });
-    formData.append('file', audioBlob, 'recording.webm');
-    formData.append('model', 'nova-2');
-    formData.append('language', 'multi');
-    formData.append('smart_format', 'true');
-    formData.append('punctuate', 'true');
-    formData.append('diarize', 'false');
+    
+    // Try different content types based on data characteristics
+    let contentType = 'audio/webm';
+    if (binary[0] === 0x66 && binary[1] === 0x4C) contentType = 'audio/flac';
+    else if (binary[0] === 0x49 && binary[1] === 0x44) contentType = 'audio/mp3';
+    else if (binary[0] === 0x52 && binary[1] === 0x49) contentType = 'audio/wav';
+    
+    const audioBlob = new Blob([binary], { type: contentType });
+    formData.append('file', audioBlob, `recording.${contentType.split('/')[1]}`);
+    formData.append('model', 'whisper-1'); // Use OpenAI Whisper for better compatibility
+    
+    // Call OpenAI Whisper API as more reliable fallback
+    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+      },
+      body: formData,
+    });
 
-    // Call Deepgram API using their file transcription endpoint
-    const deepgramResponse = await fetch(
-      "https://api.deepgram.com/v1/listen",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Token ${Deno.env.get("DEEPGRAM_API_KEY")}`,
-        },
-        body: formData
-      }
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ OpenAI Whisper error:', errorText);
+      throw new Error(`Transcription failed: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('✅ OpenAI Whisper transcription successful');
+    const text = result.text?.trim() || '';
+    
+    return new Response(
+      JSON.stringify({ text }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
     if (!deepgramResponse.ok) {

@@ -26,6 +26,9 @@ import { populateContentLibrary, verifyContent } from '../utils/populateContent'
 import { uploadTestStory } from '../utils/uploadTestStory';
 import { testGetContent } from '../utils/testGetContent';
 import { testStorageAccess } from '../utils/testStorageAccess';
+import { CrossPlatformAudioRecorder, getPlatformInfo } from '../utils/audioRecording';
+import { transcriptionService, TranscriptionResult } from '../utils/transcriptionService';
+import { ModernAudioRecorder, transcribeAudioModern } from '../utils/modernAudioRecording';
 import confetti from 'canvas-confetti';
 
 export interface ChatMessage {
@@ -91,11 +94,9 @@ export const BuddyApp = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const { toast } = useToast();
   
-  // Microphone recording refs
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
-  const lastChunkProcessed = useRef<number>(0);
+  // Modern cross-platform audio recording
+  const modernRecorderRef = useRef<ModernAudioRecorder | null>(null);
+  const platformInfo = getPlatformInfo();
 
   console.log('🔍 State initialized, running useEffect...');
 
@@ -1181,8 +1182,8 @@ export const BuddyApp = () => {
           
           setMessages(prev => [...prev, tempMessage]);
           
-          // Transcribe and get AI response
-          await transcribeAudio(audioBlob, tempMessage.id);
+          // Process with cross-platform transcription
+          await processRecordedAudio(audioBlob);
         }
         
         // Clean up
