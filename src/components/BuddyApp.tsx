@@ -721,11 +721,14 @@ export const BuddyApp = () => {
       const content = data.content;
       console.log('📖 Content received:', content);
       
-      // Start TTS and UI updates immediately in parallel
+      // Generate the EXACT same text for both TTS and display
       if (intent.type === 'story') {
-        const sceneText = `Here's a story called "${content.title}": ${content.body} The end! Did you like the story?`;
-        console.log('🎵 Starting immediate TTS for story');
-        playVoice(sceneText); // Start TTS right away
+        const scenes = content.scenes || [content.body];
+        const firstScene = scenes[0];
+        const sceneText = `Here's a story called "${content.title}": ${firstScene}${scenes.length > 1 ? ' ...should I continue?' : ' The end! Did you like the story?'}`;
+        
+        console.log('🎵 Starting immediate TTS for story (first scene only)');
+        playVoice(sceneText); // Start TTS for EXACT text that will be displayed
         handleStoryContent(content, messageId); // Don't await - run in parallel
       } else if (intent.type === 'rhyme') {
         const rhymeText = `♪ Let me sing you "${content.title}"! ♪\n\n${content.lyrics ? content.lyrics.join('\n♪ ') + ' ♪' : content.body}`;
