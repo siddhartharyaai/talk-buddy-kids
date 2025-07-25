@@ -60,9 +60,9 @@ serve(async (req) => {
 
     // 1. ADAPTIVE REPLY ENGINE - Intent Classifier
     function classifyIntent(text: string) {
-      if (/story|कहानी|kahani|tale|once upon/i.test(text)) return "story";
-      if (/song|गाना|कविता|rhyme|sing|music/i.test(text)) return "song";
-      if (/why|how|what|क्यों|क्या|explain|tell me about|what is/i.test(text)) return "question";
+      if (/story|कहानी|kahani|tale|once upon|tell me about.*story|adventure|dragon|princess|space|mermaid|dinosaur|basketball/i.test(text)) return "story";
+      if (/song|गाना|कविता|rhyme|sing|music|melody|verse|rainbow.*kitten|lullaby/i.test(text)) return "song";
+      if (/why|how|what|क्यों|क्या|explain|tell me about|what is|leaves fall|sky blue|where do/i.test(text)) return "question";
       return "chat";
     }
 
@@ -76,8 +76,9 @@ serve(async (req) => {
       try {
         console.log('📚 Story requested - fetching from content library...');
         
-        // Extract topic from message (animals, nature, etc.)
-        const topicMatch = message.match(/about\s+(\w+)/i);
+        // Enhanced topic extraction for broader content
+        const topicMatch = message.match(/(?:about|story.*?about|tell me about|adventure.*?with|playing|space|dragon|princess|mermaid|dinosaur|basketball|rainbow.*?kitten)\s+(\w+(?:\s+\w+)?)/i) ||
+                          message.match(/(dragon|princess|space.*?adventure|mermaid|dinosaur.*?basketball|rainbow.*?kitten|spaceship|castle|ocean|forest|magic)/i);
         const requestedTopic = topicMatch ? topicMatch[1] : 'animals';
         
         // Determine language preference

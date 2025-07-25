@@ -26,6 +26,7 @@ import { populateContentLibrary, verifyContent } from '../utils/populateContent'
 import { uploadTestStory } from '../utils/uploadTestStory';
 import { testGetContent } from '../utils/testGetContent';
 import { testStorageAccess } from '../utils/testStorageAccess';
+import { runDynamicFallbackTests, generateTestReport } from '../utils/testDynamicFallback';
 import confetti from 'canvas-confetti';
 
 export interface ChatMessage {
@@ -34,6 +35,7 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   isProcessing?: boolean;
+  isAiGenerated?: boolean;
 }
 
 export interface LearningMemory {
@@ -774,7 +776,12 @@ export const BuddyApp = () => {
           console.log('📱 Displaying text in UI at timestamp:', Date.now());
           return prev.map(msg => 
             msg.id === messageId
-              ? { ...msg, content: sceneText, isProcessing: false }
+              ? { 
+                  ...msg, 
+                  content: sceneText, 
+                  isProcessing: false,
+                  isAiGenerated: story.isAiGenerated || false
+                }
               : msg
           );
         });
@@ -793,7 +800,12 @@ export const BuddyApp = () => {
     
     setMessages(prev => prev.map(msg => 
       msg.id === messageId
-        ? { ...msg, content: rhymeText, isProcessing: false }
+        ? { 
+            ...msg, 
+            content: rhymeText, 
+            isProcessing: false,
+            isAiGenerated: rhyme.isAiGenerated || false
+          }
         : msg
     ));
     
@@ -1918,6 +1930,38 @@ export const BuddyApp = () => {
             💾
           </Button>
           
+          {/* Dynamic Fallback Test */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              try {
+                toast({ title: "Running Dynamic Fallback Tests...", description: "Testing 4 scenarios" });
+                const results = await runDynamicFallbackTests();
+                const report = generateTestReport(results);
+                
+                if (report.allPassed) {
+                  toast({ 
+                    title: "All Tests Passed! ✅", 
+                    description: `${report.passCount}/${report.totalCount} tests successful` 
+                  });
+                } else {
+                  toast({ 
+                    title: "Some Tests Failed ⚠️", 
+                    description: `${report.passCount}/${report.totalCount} tests passed`, 
+                    variant: "destructive" 
+                  });
+                }
+              } catch (error) {
+                console.error('❌ Fallback tests failed:', error);
+                toast({ title: "Test Suite Failed", description: error?.message || "Unknown error", variant: "destructive" });
+              }
+            }}
+            className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
+            title="Test Dynamic Fallback System"
+          >
+            🌟
+          </Button>
           {/* Dev test buttons removed - lock controls now in production section above */}
           <Button
             variant="ghost"
@@ -1976,15 +2020,22 @@ export const BuddyApp = () => {
                       </div>
                     )
                   )}
-                  <div className={`flex-1 ${message.type === 'user' ? 'text-right' : ''}`}>
-                    <p className={`text-lg leading-relaxed font-medium ${
-                      message.type === 'user' ? 'text-foreground' : 'text-gray-100'
-                    } ${message.isProcessing ? 'italic opacity-75' : ''}`}>
-                      {message.content}
-                      {message.isProcessing && (
-                        <span className="inline-block ml-2 animate-pulse">...</span>
-                      )}
-                    </p>
+                   <div className={`flex-1 ${message.type === 'user' ? 'text-right' : ''}`}>
+                     <div className="flex items-start gap-2">
+                       <p className={`text-lg leading-relaxed font-medium flex-1 ${
+                         message.type === 'user' ? 'text-foreground' : 'text-gray-100'
+                       } ${message.isProcessing ? 'italic opacity-75' : ''}`}>
+                         {message.content}
+                         {message.isProcessing && (
+                           <span className="inline-block ml-2 animate-pulse">...</span>
+                         )}
+                       </p>
+                       {message.type === 'buddy' && message.isAiGenerated && (
+                         <span className="text-yellow-300 text-sm flex-shrink-0" title="AI-generated original content">
+                           🌟
+                         </span>
+                       )}
+                     </div>
                     <span className={`text-xs mt-2 block ${
                       message.type === 'user' ? 'text-muted-foreground' : 'text-white/70'
                     }`}>
