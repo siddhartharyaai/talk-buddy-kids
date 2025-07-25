@@ -12,6 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { getDefaultTimezone, minsUsedToday } from '../utils/usageTimers';
 import { UsageRules, DailyTelemetry } from './BuddyApp';
+import { AvatarDisplay, AvatarType } from './AvatarDisplay';
 
 export interface ChildProfile {
   name: string;
@@ -23,6 +24,7 @@ export interface ChildProfile {
   energyLevel: 'low' | 'medium' | 'high';
   language: ('english' | 'hindi')[];
   speechSpeed?: 'slow' | 'normal' | 'fast'; // Step F: Speech-speed slider
+  avatar?: 'bunny' | 'lion' | 'puppy';
   usage_rules?: UsageRules;
   daily_telemetry?: DailyTelemetry;
 }
@@ -62,7 +64,8 @@ export const ParentSettingsModal = ({
       learningGoals: [],
       energyLevel: 'medium',
       language: ['english'],
-      speechSpeed: 'normal' // Step F: Default speech speed
+      speechSpeed: 'normal', // Step F: Default speech speed
+      avatar: 'bunny' // Default avatar
     };
   });
 
@@ -196,6 +199,33 @@ export const ParentSettingsModal = ({
                         <SelectItem value="other">Other/Prefer not to say</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                {/* Avatar Selection */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium text-gray-700">
+                    Choose Avatar
+                  </Label>
+                  <div className="grid grid-cols-3 gap-4">
+                    {(['bunny', 'lion', 'puppy'] as const).map((avatarType) => (
+                      <div
+                        key={avatarType}
+                        className={`
+                          p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md flex flex-col items-center space-y-2
+                          ${profile.avatar === avatarType 
+                            ? 'border-blue-500 bg-blue-50' 
+                            : 'border-gray-200 hover:border-gray-300'
+                          }
+                        `}
+                        onClick={() => setProfile({ ...profile, avatar: avatarType })}
+                      >
+                        <AvatarDisplay avatarType={avatarType} size="lg" />
+                        <span className="text-sm font-medium capitalize text-gray-700">
+                          {avatarType}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

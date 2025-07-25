@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConsentBanner } from './ConsentBanner';
 import { ParentSettingsModal, ChildProfile } from './ParentSettingsModal';
+import { AvatarDisplay } from './AvatarDisplay';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -128,7 +129,8 @@ export const BuddyApp = () => {
             energyLevel: profile.energy_level as ChildProfile['energyLevel'],
             language: (profile.language || ['english']).filter((lang: string): lang is 'english' | 'hindi' => 
               lang === 'english' || lang === 'hindi'
-            ) as ('english' | 'hindi')[]
+            ) as ('english' | 'hindi')[],
+            avatar: (profile.avatar as 'bunny' | 'lion' | 'puppy') || 'bunny'
           };
           setChildProfile(frontendProfile);
           console.log('✅ Loaded profile from database:', frontendProfile);
@@ -201,7 +203,8 @@ export const BuddyApp = () => {
         interests: profile.interests,
         learning_goals: profile.learningGoals,
         energy_level: profile.energyLevel,
-        language: profile.language
+        language: profile.language,
+        avatar: profile.avatar || 'bunny'
       };
 
       console.log('📦 Profile data to save:', dbProfile);
@@ -1669,9 +1672,13 @@ export const BuddyApp = () => {
       {/* Fixed Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-sm border-b border-blue-200 p-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
-            <span className="text-white font-bold text-lg">B</span>
-          </div>
+          {childProfile?.avatar ? (
+            <AvatarDisplay avatarType={childProfile.avatar} size="md" />
+          ) : (
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-lg">B</span>
+            </div>
+          )}
           <div>
             <h1 className="font-bold text-xl text-gray-800">Buddy</h1>
             <p className="text-sm text-gray-600">
@@ -1904,9 +1911,13 @@ export const BuddyApp = () => {
           {/* Welcome Message */}
           <Card className="p-4 bg-gradient-to-r from-blue-100 to-purple-100 border-blue-200">
             <div className="flex items-start space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold text-sm">B</span>
-              </div>
+              {childProfile?.avatar ? (
+                <AvatarDisplay avatarType={childProfile.avatar} size="sm" />
+              ) : (
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-sm">B</span>
+                </div>
+              )}
               <div>
                 <p className="text-gray-800 text-lg">
                   {getWelcomeMessage()}
@@ -1931,9 +1942,13 @@ export const BuddyApp = () => {
               >
                 <div className="flex items-start space-x-3">
                   {message.type === 'buddy' && (
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-bold text-sm">B</span>
-                    </div>
+                    childProfile?.avatar ? (
+                      <AvatarDisplay avatarType={childProfile.avatar} size="sm" />
+                    ) : (
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-sm">B</span>
+                      </div>
+                    )
                   )}
                   <div className={`flex-1 ${message.type === 'user' ? 'text-right' : ''}`}>
                     <p className={`${

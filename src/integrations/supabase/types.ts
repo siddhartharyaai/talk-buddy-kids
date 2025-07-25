@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           age_group: string
           age_years: number
+          avatar: string
           created_at: string
           daily_telemetry: Json | null
           energy_level: string
@@ -34,6 +35,7 @@ export type Database = {
         Insert: {
           age_group: string
           age_years: number
+          avatar?: string
           created_at?: string
           daily_telemetry?: Json | null
           energy_level?: string
@@ -50,6 +52,7 @@ export type Database = {
         Update: {
           age_group?: string
           age_years?: number
+          avatar?: string
           created_at?: string
           daily_telemetry?: Json | null
           energy_level?: string
