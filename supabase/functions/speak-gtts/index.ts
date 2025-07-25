@@ -25,55 +25,47 @@ serve(async req => {
   }
 
   try {
-    console.log('🔊 Speak-gtts function called (Step 4: Deepgram TTS Pipeline)');
+    console.log('🔊 Speak-gtts function called (Step 4: OpenAI TTS Pipeline)');
     
     const { text, style } = await req.json(); 
     if (!text) throw new Error("no text");
     
-    const apiKey = Deno.env.get("DEEPGRAM_API_KEY");
-    if (!apiKey) {
-      throw new Error("DEEPGRAM_API_KEY not configured");
+    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openaiKey) {
+      throw new Error("OPENAI_API_KEY not configured");
     }
     
-    console.log('🔊 Generating speech with Deepgram TTS:', { 
+    console.log('🔊 Generating speech with OpenAI TTS:', { 
       text: text.substring(0, 50), 
       style: style || 'normal' 
     });
     
-    // Select voice model based on style
-    const voiceModel = style === 'singing' || style === 'expressive' 
-      ? 'aura-2-luna-en'  // More expressive, melodic voice
-      : 'aura-2-amalthea-en'; // Standard friendly voice
+    // OpenAI voice selection based on style
+    const voice = style === 'singing' ? 'nova' : 'alloy';
+    console.log(`🎵 Using OpenAI voice: ${voice} for style: ${style || 'normal'}`);
     
-    console.log(`🎵 Using voice model: ${voiceModel} for style: ${style || 'normal'}`);
-    
-    // Self-test messages for validation
-    const testLines = [
-      "Hello there! This is a test message.",
-      "Testing audio quality and playback.",
-      "Buddy speaking loud and clear!"
-    ];
-    console.log('📋 Self-test lines ready:', testLines);
-    
-    // Use Deepgram TTS API with voice selection
+    // Use OpenAI TTS API instead - much faster than Deepgram
     const res = await fetch(
-      `https://api.deepgram.com/v1/speak?model=${voiceModel}&encoding=mp3`,
+      'https://api.openai.com/v1/audio/speech',
       {
         method: "POST",
         headers: { 
-          "Authorization": `Token ${apiKey}`,
+          "Authorization": `Bearer ${Deno.env.get("OPENAI_API_KEY")}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          text: text
+          model: "tts-1", // Fast model
+          input: text,
+          voice: voice,
+          response_format: 'mp3'
         })
       }
     );
     
     if (!res.ok) {
       const errorText = await res.text();
-      console.error('❌ Deepgram TTS API error:', res.status, errorText);
-      return new Response(JSON.stringify({ error: `Deepgram TTS API error: ${res.status}` }), { 
+      console.error('❌ OpenAI TTS API error:', res.status, errorText);
+      return new Response(JSON.stringify({ error: `OpenAI TTS API error: ${res.status}` }), { 
         status: res.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
@@ -83,8 +75,8 @@ serve(async req => {
     const audioBuffer = await res.arrayBuffer();
     
     if (!audioBuffer || audioBuffer.byteLength === 0) {
-      console.error('❌ No audio content received from Deepgram TTS');
-      throw new Error('No audio content received from Deepgram TTS');
+      console.error('❌ No audio content received from OpenAI TTS');
+      throw new Error('No audio content received from OpenAI TTS');
     }
 
     // Convert to base64 safely (chunked to avoid stack overflow)
@@ -93,7 +85,7 @@ serve(async req => {
     console.log('✅ Raw audio content length:', audioContent.length);
     console.log('✅ Audio content preview (first 100 chars):', audioContent.substring(0, 100));
     
-    console.log('✅ Speech generated successfully with Deepgram TTS');
+    console.log('✅ Speech generated successfully with OpenAI TTS');
     
     return new Response(JSON.stringify({ audioContent }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
