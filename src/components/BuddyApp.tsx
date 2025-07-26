@@ -311,25 +311,25 @@ export const BuddyApp = () => {
     return;
   };
 
-  // Enhanced transcription with streaming and quality assessment
+  // BULLETPROOF STT PIPELINE - Simplified with dual fallback system
   const transcribeAudio = async (audioBlob: Blob, messageId: string) => {
     try {
-      console.log('🔄 Starting streaming transcription...');
+      console.log('🎤 Starting bulletproof transcription pipeline...');
       
-      // Enhanced error handling for mobile audio transcription
+      // Validate audio blob
       if (!audioBlob || audioBlob.size === 0) {
         throw new Error('Empty audio data received');
       }
       
-      console.log('📱 Audio blob details:', {
+      console.log('📱 Audio details:', {
         size: audioBlob.size,
         type: audioBlob.type,
-        userAgent: navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop'
+        platform: navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop'
       });
       
-      // CRITICAL: Enhanced audio validation for mobile
-      if (audioBlob.size < 1000) { // Less than 1KB is likely too small
-        console.warn('⚠️ Audio blob too small, may be empty recording');
+      // Check for minimum audio size
+      if (audioBlob.size < 500) {
+        console.warn('⚠️ Audio too small, likely empty recording');
         setMessages(prev => prev.map(msg => 
           msg.id === messageId 
             ? { ...msg, content: "[Recording too short - Please try again]", isProcessing: false }
@@ -338,223 +338,160 @@ export const BuddyApp = () => {
         return;
       }
       
-      // Convert blob to base64
+      // Convert to base64 for transmission
       const arrayBuffer = await audioBlob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
       const base64Audio = btoa(binaryString);
       
-      console.log(`📤 Sending ${base64Audio.length} characters to streaming transcription`);
+      console.log(`📤 Audio converted: ${base64Audio.length} chars`);
       
-      // CRITICAL: Use full Supabase URL for mobile compatibility
-      const wsUrl = `wss://bcqfogudctmltxvwluyb.functions.supabase.co/functions/v1/transcribe-streaming`;
-      
-      console.log(`🔗 Connecting to: ${wsUrl}`);
-      
-      const ws = new WebSocket(wsUrl);
-      let finalTranscript = '';
-      let qualityData: { isLowQuality: boolean; reason: string } | null = null;
-      let connectionTimeout: NodeJS.Timeout | null = null;
-      
-      // CRITICAL: Enhanced connection timeout handling
-      connectionTimeout = setTimeout(() => {
-        if (ws.readyState !== WebSocket.OPEN) {
-          console.error('❌ WebSocket connection timeout');
-          ws.close();
-          setMessages(prev => prev.map(msg => 
-            msg.id === messageId 
-              ? { ...msg, content: "[Connection lost - Please try again]", isProcessing: false }
-              : msg
-          ));
-        }
-      }, 15000); // Increased to 15 seconds for mobile
-      
-      ws.onopen = () => {
-        console.log('🔌 Connected to streaming transcription');
-        if (connectionTimeout) {
-          clearTimeout(connectionTimeout);
-          connectionTimeout = null;
-        }
+      // PRIMARY METHOD: Direct Deepgram API call (more reliable)
+      try {
+        console.log('🚀 Attempting direct Deepgram transcription...');
         
-        try {
-          // CRITICAL: Enhanced audio data transmission with error handling
-          console.log('📤 Sending audio data to transcription service');
-          
-          // Send audio data with metadata for better processing
-          ws.send(JSON.stringify({
-            type: 'audio',
-            data: base64Audio,
-            metadata: {
-              platform: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop',
-              audioSize: audioBlob.size,
-              audioType: audioBlob.type
-            }
-          }));
-          
-          // Signal recording complete
-          console.log('📤 Signaling recording complete');
-          ws.send(JSON.stringify({ type: 'stop_recording' }));
-        } catch (error) {
-          console.error('❌ Failed to send audio data:', error);
-          setMessages(prev => prev.map(msg => 
-            msg.id === messageId 
-              ? { ...msg, content: "[Failed to send audio - Please try again]", isProcessing: false }
-              : msg
-          ));
-          ws.close();
-        }
-      };
-      
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        console.log('📝 Transcription update:', data);
-        
-        if (data.type === 'partial') {
-          // SECTION D: Update speech activity tracking for auto-stop
-          if (data.text.trim()) {
-            lastSpeechTimeRef.current = Date.now();
-            
-            // Clear any existing auto-stop timeout since we have speech
-            if (autoStopTimeoutRef.current) {
-              clearTimeout(autoStopTimeoutRef.current);
-              autoStopTimeoutRef.current = null;
-            }
-            
-            // Update UI with partial results for better UX
-            setMessages(prev => prev.map(msg => 
-              msg.id === messageId 
-                ? { ...msg, content: `${data.text}...`, isProcessing: true }
-                : msg
-            ));
-          } else {
-            // No speech detected in this partial - start auto-stop timer if not already running
-            if (!autoStopTimeoutRef.current && isRecording) {
-              autoStopTimeoutRef.current = setTimeout(() => {
-                if (Date.now() - lastSpeechTimeRef.current > 500) {
-                  autoStopRecording();
-                }
-              }, 500);
-            }
+        const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+          body: { 
+            audio: base64Audio 
           }
-        } else if (data.type === 'final') {
-          finalTranscript = data.text;
-          qualityData = {
-            isLowQuality: data.isLowQuality,
-            reason: data.durationMs < 300 ? 'too short' : 
-                   data.confidence < 0.6 ? 'low confidence' : 'unknown'
-          };
-          
-          console.log(`✅ Final transcription: "${finalTranscript}" (quality: ${qualityData.isLowQuality ? 'LOW' : 'GOOD'})`);
-          
-          // Update the message with final transcribed text
-          setMessages(prev => prev.map(msg => 
-            msg.id === messageId 
-              ? { ...msg, content: finalTranscript, isProcessing: false }
-              : msg
-          ));
-          
-          if (!finalTranscript || finalTranscript.trim() === '') {
-            // SECTION D: Play error chime for failed transcription
-            AudioChimes.playErrorChime().catch(err => 
-              console.log('ℹ️ Could not play error chime:', err)
-            );
-            
-            toast({
-              title: "Empty transcript",
-              description: "Could not understand the audio. Try speaking clearer.",
-              variant: "destructive"
-            });
-          } else {
-            // SECTION D: Play success chime for successful transcription
-            AudioChimes.playSuccessChime().catch(err => 
-              console.log('ℹ️ Could not play success chime:', err)
-            );
-            
-            // Step 6: Hide dev toasts behind import.meta.env.DEV
-            if (import.meta.env.DEV) {
-              toast({
-                title: `Speech recognized! ${qualityData.isLowQuality ? '⚠️' : '🎯'}`,
-                description: `"${finalTranscript.slice(0, 50)}${finalTranscript.length > 50 ? '...' : ''}"`
-              });
-            }
-            
-            // Route to appropriate response handler with quality data
-            getBuddyResponse(finalTranscript, qualityData);
-          }
-          
-          ws.close();
-        } else if (data.type === 'error') {
-          console.error('❌ Streaming transcription error:', data.message);
-          
-          // SECTION D: Play error chime for transcription errors
-          AudioChimes.playErrorChime().catch(err => 
-            console.log('ℹ️ Could not play error chime:', err)
-          );
-          
-          throw new Error(data.message);
-        }
-      };
-      
-      ws.onerror = (error) => {
-        console.error('❌ WebSocket error:', error);
-        if (connectionTimeout) {
-          clearTimeout(connectionTimeout);
-          connectionTimeout = null;
+        });
+        
+        if (error) {
+          console.error('❌ Direct transcription error:', error);
+          throw new Error(error.message);
         }
         
-        // CRITICAL: Enhanced error messaging for mobile users
+        if (!data?.text || data.text.trim() === '') {
+          console.warn('⚠️ Empty transcription result');
+          throw new Error('Empty transcription result');
+        }
+        
+        const transcribedText = data.text.trim();
+        console.log('✅ Direct transcription successful:', transcribedText);
+        
+        // Update message with transcribed text
         setMessages(prev => prev.map(msg => 
           msg.id === messageId 
-            ? { ...msg, content: '[Connection lost - Please check your internet and try again]', isProcessing: false }
+            ? { ...msg, content: transcribedText, isProcessing: false }
             : msg
         ));
         
-        setIsRecording(false);
-      };
-      
-      ws.onclose = (event) => {
-        console.log('🔌 Streaming transcription closed:', event.code, event.reason);
-        if (connectionTimeout) {
-          clearTimeout(connectionTimeout);
-          connectionTimeout = null;
-        }
+        // Play success chime
+        AudioChimes.playSuccessChime().catch(err => 
+          console.log('ℹ️ Could not play success chime:', err)
+        );
         
-        // CRITICAL: Enhanced close handling with better error messages
-        if (!finalTranscript) {
-          const errorMessage = event.code === 1006 ? 
-            '[Connection lost - Please check your internet and try again]' : 
-            '[Could not understand - Please try speaking louder and more clearly]';
+        // Send to LLM for response
+        getBuddyResponse(transcribedText, { isLowQuality: false, reason: 'direct' });
+        
+        return;
+        
+      } catch (primaryError) {
+        console.warn('⚠️ Primary transcription method failed:', primaryError);
+        
+        // FALLBACK METHOD: Try streaming if direct fails
+        console.log('🔄 Attempting fallback streaming transcription...');
+        
+        const wsUrl = `wss://bcqfogudctmltxvwluyb.functions.supabase.co/functions/v1/transcribe-streaming`;
+        const ws = new WebSocket(wsUrl);
+        let transcriptionReceived = false;
+        
+        // Set a timeout for the entire transcription process
+        const transcriptionTimeout = setTimeout(() => {
+          if (!transcriptionReceived) {
+            console.error('❌ Transcription timeout');
+            ws.close();
+            setMessages(prev => prev.map(msg => 
+              msg.id === messageId 
+                ? { ...msg, content: "[Transcription timeout - Please try again]", isProcessing: false }
+                : msg
+            ));
+          }
+        }, 10000); // 10 second timeout
+        
+        ws.onopen = () => {
+          console.log('🔌 Fallback WebSocket connected');
+          try {
+            ws.send(JSON.stringify({
+              type: 'audio',
+              data: base64Audio
+            }));
+            ws.send(JSON.stringify({ type: 'stop_recording' }));
+          } catch (error) {
+            console.error('❌ Failed to send audio via WebSocket:', error);
+            clearTimeout(transcriptionTimeout);
+            throw error;
+          }
+        };
+        
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('📝 WebSocket response:', data);
             
-          setMessages(prev => prev.map(msg => 
-            msg.id === messageId 
-              ? { ...msg, content: errorMessage, isProcessing: false }
-              : msg
-          ));
-          setIsRecording(false);
-        }
-      };
+            if (data.type === 'final' && data.text) {
+              transcriptionReceived = true;
+              clearTimeout(transcriptionTimeout);
+              
+              const transcribedText = data.text.trim();
+              console.log('✅ Fallback transcription successful:', transcribedText);
+              
+              setMessages(prev => prev.map(msg => 
+                msg.id === messageId 
+                  ? { ...msg, content: transcribedText, isProcessing: false }
+                  : msg
+              ));
+              
+              AudioChimes.playSuccessChime().catch(err => 
+                console.log('ℹ️ Could not play success chime:', err)
+              );
+              
+              getBuddyResponse(transcribedText, { isLowQuality: data.isLowQuality || false, reason: 'fallback' });
+              ws.close();
+            }
+          } catch (error) {
+            console.error('❌ WebSocket message error:', error);
+          }
+        };
+        
+        ws.onerror = (error) => {
+          console.error('❌ WebSocket error:', error);
+          clearTimeout(transcriptionTimeout);
+          if (!transcriptionReceived) {
+            throw new Error('Both transcription methods failed');
+          }
+        };
+        
+        ws.onclose = (event) => {
+          console.log('🔌 WebSocket closed:', event.code);
+          clearTimeout(transcriptionTimeout);
+          if (!transcriptionReceived) {
+            throw new Error('WebSocket closed without transcription');
+          }
+        };
+      }
       
     } catch (error) {
-      console.error('❌ Transcription failed:', error);
+      console.error('❌ Complete transcription failure:', error);
       
-      // SECTION D: Play error chime for general transcription failures
+      // Play error chime
       AudioChimes.playErrorChime().catch(err => 
         console.log('ℹ️ Could not play error chime:', err)
       );
       
-      // Update message with error and stop processing state
+      // Update message with error
       setMessages(prev => prev.map(msg => 
         msg.id === messageId 
-          ? { ...msg, content: '[Transcription failed - Please try again]', isProcessing: false }
+          ? { ...msg, content: '[Transcription failed - Please check your connection and try again]', isProcessing: false }
           : msg
       ));
       
-      // Ensure recording state is reset
+      // Reset recording state
       setIsRecording(false);
       
       toast({
-        title: "Transcription failed",
-        description: "Could not convert speech to text. Please try again.",
+        title: "Speech to text failed",
+        description: "Could not process your voice. Please check your connection and try again.",
         variant: "destructive"
       });
     }
