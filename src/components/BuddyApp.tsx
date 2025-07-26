@@ -6,7 +6,7 @@ import { ConsentBanner } from './ConsentBanner';
 import { ParentSettingsModal, ChildProfile } from './ParentSettingsModal';
 import { AvatarDisplay } from './AvatarDisplay';
 import { ThemeToggle } from './ThemeToggle';
-import { assessQuality } from '@/utils/audioQuality';
+// Removed assessQuality import as we're keeping transcription simple
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -312,10 +312,10 @@ export const BuddyApp = () => {
     return;
   };
 
-  // SECTION A: WORLD-CLASS STT STREAMING WITH CONFIDENCE SCORING
+  // Simple and reliable STT transcription
   const transcribeAudio = async (audioBlob: Blob, messageId: string) => {
     try {
-      console.log('🎤 Starting world-class STT streaming pipeline...');
+      console.log('🎤 Starting transcription...');
       
       // Validate audio blob
       if (!audioBlob || audioBlob.size === 0) {
@@ -367,18 +367,6 @@ export const BuddyApp = () => {
       const transcribedText = data.text.trim();
       console.log('✅ Transcription successful:', transcribedText);
       
-      // SECTION A: Enhanced quality assessment with confidence scoring
-      const estimatedConfidence = data.confidence || (transcribedText.length > 5 ? 0.8 : 0.5);
-      const estimatedDuration = audioBlob.size / 100; // Rough estimate
-      const qualityAssessment = assessQuality(transcribedText, estimatedConfidence, estimatedDuration);
-      
-      console.log('🔍 Quality assessment:', {
-        text: transcribedText,
-        confidence: estimatedConfidence,
-        duration: estimatedDuration,
-        assessment: qualityAssessment
-      });
-      
       // Update message with transcribed text
       setMessages(prev => prev.map(msg => 
         msg.id === messageId 
@@ -386,24 +374,13 @@ export const BuddyApp = () => {
           : msg
       ));
       
-      // Play appropriate chime based on quality
-      if (qualityAssessment.isLowQuality) {
-        AudioChimes.playErrorChime().catch(err => 
-          console.log('ℹ️ Could not play error chime:', err)
-        );
-      } else {
-        AudioChimes.playSuccessChime().catch(err => 
-          console.log('ℹ️ Could not play success chime:', err)
-        );
-      }
+      // Play success chime
+      AudioChimes.playSuccessChime().catch(err => 
+        console.log('ℹ️ Could not play success chime:', err)
+      );
       
-      // SECTION B: Route to repair module or normal processing with enhanced context
-      getBuddyResponse(transcribedText, { 
-        isLowQuality: qualityAssessment.isLowQuality, 
-        reason: qualityAssessment.reason,
-        confidence: estimatedConfidence,
-        durationMs: estimatedDuration
-      });
+      // Get response from Buddy
+      getBuddyResponse(transcribedText);
       
     } catch (error) {
       console.error('❌ Complete transcription failure:', error);
