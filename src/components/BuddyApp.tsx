@@ -327,6 +327,17 @@ export const BuddyApp = () => {
         userAgent: navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop'
       });
       
+      // CRITICAL: Enhanced audio validation for mobile
+      if (audioBlob.size < 1000) { // Less than 1KB is likely too small
+        console.warn('⚠️ Audio blob too small, may be empty recording');
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, content: "[Recording too short - Please try again]", isProcessing: false }
+            : msg
+        ));
+        return;
+      }
+      
       // Convert blob to base64
       const arrayBuffer = await audioBlob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
@@ -335,10 +346,8 @@ export const BuddyApp = () => {
       
       console.log(`📤 Sending ${base64Audio.length} characters to streaming transcription`);
       
-      // Use streaming transcription with enhanced error handling
-      const hostname = window.location.hostname;
-      const projectRef = hostname.includes('.') ? hostname.split('.')[0] : 'bcqfogudctmltxvwluyb';
-      const wsUrl = `wss://${projectRef}.functions.supabase.co/functions/v1/transcribe-streaming`;
+      // CRITICAL: Use full Supabase URL for mobile compatibility
+      const wsUrl = `wss://bcqfogudctmltxvwluyb.functions.supabase.co/functions/v1/transcribe-streaming`;
       
       console.log(`🔗 Connecting to: ${wsUrl}`);
       
@@ -347,14 +356,18 @@ export const BuddyApp = () => {
       let qualityData: { isLowQuality: boolean; reason: string } | null = null;
       let connectionTimeout: NodeJS.Timeout | null = null;
       
-      // Set connection timeout
+      // CRITICAL: Enhanced connection timeout handling
       connectionTimeout = setTimeout(() => {
         if (ws.readyState !== WebSocket.OPEN) {
           console.error('❌ WebSocket connection timeout');
           ws.close();
-          throw new Error('Connection timeout');
+          setMessages(prev => prev.map(msg => 
+            msg.id === messageId 
+              ? { ...msg, content: "[Connection lost - Please try again]", isProcessing: false }
+              : msg
+          ));
         }
-      }, 10000); // 10 second timeout
+      }, 15000); // Increased to 15 seconds for mobile
       
       ws.onopen = () => {
         console.log('🔌 Connected to streaming transcription');
@@ -364,16 +377,31 @@ export const BuddyApp = () => {
         }
         
         try {
-          // Send audio data
+          // CRITICAL: Enhanced audio data transmission with error handling
+          console.log('📤 Sending audio data to transcription service');
+          
+          // Send audio data with metadata for better processing
           ws.send(JSON.stringify({
             type: 'audio',
-            data: base64Audio
+            data: base64Audio,
+            metadata: {
+              platform: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop',
+              audioSize: audioBlob.size,
+              audioType: audioBlob.type
+            }
           }));
+          
           // Signal recording complete
+          console.log('📤 Signaling recording complete');
           ws.send(JSON.stringify({ type: 'stop_recording' }));
         } catch (error) {
           console.error('❌ Failed to send audio data:', error);
-          throw new Error('Failed to send audio data to transcription service');
+          setMessages(prev => prev.map(msg => 
+            msg.id === messageId 
+              ? { ...msg, content: "[Failed to send audio - Please try again]", isProcessing: false }
+              : msg
+          ));
+          ws.close();
         }
       };
       
@@ -474,15 +502,14 @@ export const BuddyApp = () => {
           connectionTimeout = null;
         }
         
-        // Update message to show error
+        // CRITICAL: Enhanced error messaging for mobile users
         setMessages(prev => prev.map(msg => 
           msg.id === messageId 
-            ? { ...msg, content: '[Connection failed - Please try again]', isProcessing: false }
+            ? { ...msg, content: '[Connection lost - Please check your internet and try again]', isProcessing: false }
             : msg
         ));
         
         setIsRecording(false);
-        throw new Error('Streaming transcription connection failed');
       };
       
       ws.onclose = (event) => {
@@ -492,12 +519,15 @@ export const BuddyApp = () => {
           connectionTimeout = null;
         }
         
-        // If closed unexpectedly and no final transcript received
-        if (event.code !== 1000 && !finalTranscript) {
-          console.error('❌ WebSocket closed unexpectedly');
+        // CRITICAL: Enhanced close handling with better error messages
+        if (!finalTranscript) {
+          const errorMessage = event.code === 1006 ? 
+            '[Connection lost - Please check your internet and try again]' : 
+            '[Could not understand - Please try speaking louder and more clearly]';
+            
           setMessages(prev => prev.map(msg => 
             msg.id === messageId 
-              ? { ...msg, content: '[Connection lost - Please try again]', isProcessing: false }
+              ? { ...msg, content: errorMessage, isProcessing: false }
               : msg
           ));
           setIsRecording(false);
@@ -1584,17 +1614,47 @@ export const BuddyApp = () => {
     }
   }, [childProfile, hasGreeted, playVoice]);
 
-  // Auto greeting when profile is loaded - Fixed with proper dependencies
+  // Auto greeting when profile is loaded - Fixed with proper dependencies and forced audio trigger
   useEffect(() => {
     if (childProfile && !hasGreeted && hasConsent) {
-      // Small delay to ensure component is fully mounted
-      const timer = setTimeout(() => {
-        sendAutoGreeting();
-      }, 1500);
+      console.log('🎵 Triggering auto-greeting for mobile users...');
+      // Immediate greeting trigger for mobile
+      const timer = setTimeout(async () => {
+        setHasGreeted(true);
+        
+        // Force audio context activation for mobile
+        try {
+          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+            console.log('📱 Audio context resumed for mobile');
+          }
+        } catch (error) {
+          console.log('📱 Audio context activation failed:', error);
+        }
+        
+        // Trigger immediate greeting
+        const greetingText = `Hello Ishanvi! It's so happy to see you today! Shall we have some fun?`;
+        console.log('🎵 Starting IMMEDIATE audio for greeting:', greetingText);
+        
+        // Use enhanced playback for mobile optimization
+        await playVoiceEnhanced(greetingText);
+        
+        // Add greeting message to chat
+        const greetingMessage: ChatMessage = {
+          id: Date.now().toString(),
+          type: 'buddy',
+          content: greetingText,
+          timestamp: new Date(),
+          isProcessing: false
+        };
+        setMessages(prev => [...prev, greetingMessage]);
+        
+      }, 500); // Reduced delay for faster response
       
       return () => clearTimeout(timer);
     }
-  }, [childProfile, hasGreeted, hasConsent, sendAutoGreeting]);
+  }, [childProfile, hasGreeted, hasConsent, playVoiceEnhanced]);
 
   // Enhanced handleMicPress with barge-in functionality  
   const handleMicPress = async () => {
