@@ -808,7 +808,7 @@ export const BuddyApp = () => {
     }
   }, [childProfile]);
 
-  // Enhanced audio playback for mobile with preload and better error handling
+  // MISSION CRITICAL: Bulletproof audio playback with zero audio cutoff
   const playVoiceEnhanced = useCallback(async (text: string) => {
     try {
       if (!text || text.trim() === '') {
@@ -816,81 +816,253 @@ export const BuddyApp = () => {
         return;
       }
 
-      console.log('🔊 Starting enhanced voice playback for mobile:', text.substring(0, 50));
+      console.log('🔊 CRITICAL: Starting bulletproof audio playback:', text.substring(0, 50));
 
-      const { data, error } = await supabase.functions.invoke('speak-gtts', {
-        body: { text }
-      });
-
-      if (error) {
-        console.error('❌ Enhanced TTS Function Error:', error);
-        return playVoice(text);
-      }
-
-      if (!data?.audioContent) {
-        console.error('❌ No audio content in enhanced response');
-        return playVoice(text);
-      }
-
-      // Create audio with mobile-optimized settings
-      const audioBlob = new Blob([Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))], { type: 'audio/mp3' });
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-
-      // Mobile-specific audio settings
-      audio.preload = 'auto';
-      audio.volume = 0.9;
+      // STEP 1: Get audio content with retry logic
+      let audioData;
+      let retryCount = 0;
+      const maxRetries = 3;
       
-      // Store current audio reference for stopping
+      while (retryCount < maxRetries) {
+        try {
+          console.log(`🔄 CRITICAL: TTS request attempt ${retryCount + 1}`);
+          const { data, error } = await supabase.functions.invoke('speak-gtts', {
+            body: { text }
+          });
+
+          if (error) {
+            throw new Error(`TTS Error: ${error.message}`);
+          }
+
+          if (!data?.audioContent) {
+            throw new Error('No audio content received');
+          }
+
+          audioData = data.audioContent;
+          console.log('✅ CRITICAL: Audio content received, length:', audioData.length);
+          break;
+          
+        } catch (attempt_error) {
+          retryCount++;
+          console.warn(`⚠️ CRITICAL: TTS attempt ${retryCount} failed:`, attempt_error);
+          
+          if (retryCount >= maxRetries) {
+            throw new Error(`TTS failed after ${maxRetries} attempts: ${attempt_error.message}`);
+          }
+          
+          // Wait before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        }
+      }
+
+      // STEP 2: BULLETPROOF audio blob creation with comprehensive validation
+      const binaryString = atob(audioData);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Validate audio data
+      if (bytes.length < 1000) {
+        throw new Error('Audio data too small - may be corrupted');
+      }
+
+      const audioBlob = new Blob([bytes], { type: 'audio/mp3' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      console.log('🎵 CRITICAL: Audio blob created, size:', audioBlob.size, 'bytes');
+
+      // STEP 3: MISSION CRITICAL audio element with maximum compatibility
+      const audio = new Audio();
       currentAudioRef.current = audio;
 
-      audio.onloadstart = () => {
-        console.log('📱 Enhanced audio loading started');
-        setIsSpeaking(true);
-      };
+      // Bulletproof audio settings for all devices
+      audio.preload = 'auto';
+      audio.volume = 1.0;
+      audio.autoplay = false; // Explicitly false to control playback
       
-      audio.oncanplaythrough = () => {
-        console.log('📱 Enhanced audio ready to play');
-      };
-      
-      audio.onended = () => {
-        console.log('📱 Enhanced audio playback ended');
-        setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-        currentAudioRef.current = null;
-      };
-      
-      audio.onerror = (e) => {
-        console.error('📱 Enhanced audio error:', e);
-        setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-        currentAudioRef.current = null;
-        playVoice(text);
-      };
-
-      // Wait for audio to be ready before playing  
-      await new Promise<void>((resolve, reject) => {
-        const onReady = () => resolve();
-        const onError = () => reject(new Error('Audio load failed'));
-        
-        audio.oncanplaythrough = onReady;
-        audio.onerror = onError;
-        
-        // Timeout fallback
-        setTimeout(() => {
-          if (audio.readyState >= 3) { // HAVE_FUTURE_DATA
-            resolve();
+      // Enable audio processing on mobile devices
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        console.log('📱 CRITICAL: Mobile device - applying mobile audio optimizations');
+        try {
+          // Force audio context resume for iOS
+          if (typeof window !== 'undefined') {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioContextClass) {
+              const audioCtx = new AudioContextClass();
+              if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+                console.log('✅ CRITICAL: Mobile audio context resumed');
+              }
+            }
           }
-        }, 2000);
+        } catch (mobileError) {
+          console.warn('⚠️ CRITICAL: Mobile audio context setup failed:', mobileError);
+        }
+      }
+
+      // STEP 4: Comprehensive audio loading and playback control
+      return new Promise<void>((resolve, reject) => {
+        let hasStartedPlaying = false;
+        let loadTimeout: NodeJS.Timeout | null = null;
+        let playTimeout: NodeJS.Timeout | null = null;
+        
+        // Set speaking state immediately
+        setIsSpeaking(true);
+        
+        const cleanup = () => {
+          if (loadTimeout) clearTimeout(loadTimeout);
+          if (playTimeout) clearTimeout(playTimeout);
+          URL.revokeObjectURL(audioUrl);
+          currentAudioRef.current = null;
+        };
+
+        // CRITICAL: Audio event handlers with comprehensive error recovery
+        audio.onloadstart = () => {
+          console.log('🔄 CRITICAL: Audio loading started');
+        };
+
+        audio.onloadeddata = () => {
+          console.log('✅ CRITICAL: Audio data loaded successfully');
+        };
+
+        audio.oncanplay = () => {
+          console.log('✅ CRITICAL: Audio can start playing');
+        };
+
+        audio.oncanplaythrough = () => {
+          console.log('✅ CRITICAL: Audio fully loaded and ready');
+        };
+
+        audio.onplay = () => {
+          console.log('🎵 CRITICAL: Audio playback started');
+          hasStartedPlaying = true;
+          if (loadTimeout) {
+            clearTimeout(loadTimeout);
+            loadTimeout = null;
+          }
+        };
+
+        audio.onended = () => {
+          console.log('✅ CRITICAL: Audio playback completed successfully');
+          setIsSpeaking(false);
+          cleanup();
+          resolve();
+        };
+
+        audio.onerror = (errorEvent) => {
+          console.error('❌ CRITICAL: Audio playback error:', errorEvent, audio.error);
+          setIsSpeaking(false);
+          cleanup();
+          
+          // Try fallback to original playVoice function
+          playVoice(text).then(resolve).catch(reject);
+        };
+
+        audio.onstalled = () => {
+          console.warn('⚠️ CRITICAL: Audio playback stalled');
+        };
+
+        audio.onsuspend = () => {
+          console.warn('⚠️ CRITICAL: Audio loading suspended');
+        };
+
+        // STEP 5: Load audio with timeout protection
+        console.log('🔄 CRITICAL: Loading audio URL...');
+        audio.src = audioUrl;
+        
+        // Load timeout - if audio doesn't load in 10 seconds, retry
+        loadTimeout = setTimeout(() => {
+          console.error('❌ CRITICAL: Audio load timeout');
+          setIsSpeaking(false);
+          cleanup();
+          playVoice(text).then(resolve).catch(reject);
+        }, 10000);
+
+        // STEP 6: Wait for audio to be ready, then play
+        const attemptPlay = async () => {
+          try {
+            // Wait for minimum readiness
+            if (audio.readyState >= 2) { // HAVE_CURRENT_DATA
+              console.log('🎵 CRITICAL: Attempting audio playback...');
+              await audio.play();
+              
+              // Success - clear load timeout
+              if (loadTimeout) {
+                clearTimeout(loadTimeout);
+                loadTimeout = null;
+              }
+              
+              console.log('✅ CRITICAL: Audio playback initiated successfully');
+            } else {
+              console.log('⏳ CRITICAL: Audio not ready, waiting...');
+              // Retry after short delay
+              setTimeout(attemptPlay, 500);
+            }
+          } catch (playError) {
+            console.error('❌ CRITICAL: Audio play() failed:', playError);
+            
+            if (playError.name === 'NotAllowedError') {
+              console.log('🎵 CRITICAL: Autoplay blocked - setting up user interaction trigger');
+              
+              // Clear timeouts
+              if (loadTimeout) clearTimeout(loadTimeout);
+              if (playTimeout) clearTimeout(playTimeout);
+              
+              // Wait for user interaction
+              const playOnInteraction = async (event: Event) => {
+                console.log('🎵 CRITICAL: User interaction detected, playing audio:', event.type);
+                try {
+                  await audio.play();
+                  console.log('✅ CRITICAL: Audio playing after user interaction');
+                  document.removeEventListener('click', playOnInteraction);
+                  document.removeEventListener('touchstart', playOnInteraction);
+                  document.removeEventListener('touchend', playOnInteraction);
+                } catch (retryError) {
+                  console.error('❌ CRITICAL: Audio still failed after interaction:', retryError);
+                  setIsSpeaking(false);
+                  cleanup();
+                  reject(retryError);
+                }
+              };
+              
+              document.addEventListener('click', playOnInteraction, { once: true, passive: true });
+              document.addEventListener('touchstart', playOnInteraction, { once: true, passive: true });
+              document.addEventListener('touchend', playOnInteraction, { once: true, passive: true });
+              
+              // Note: We don't reject here, we let the user interaction resolve the promise
+              
+            } else {
+              setIsSpeaking(false);
+              cleanup();
+              reject(playError);
+            }
+          }
+        };
+
+        // Start the play attempt
+        attemptPlay();
+        
+        // Ultimate safety timeout - if nothing happens in 30 seconds, give up
+        playTimeout = setTimeout(() => {
+          console.error('❌ CRITICAL: Ultimate timeout - audio failed completely');
+          setIsSpeaking(false);
+          cleanup();
+          reject(new Error('Audio playback timeout'));
+        }, 30000);
       });
 
-      await audio.play();
-      console.log('📱 Enhanced audio playback started successfully');
-
     } catch (error) {
-      console.error('❌ playVoiceEnhanced failed:', error);
+      console.error('❌ CRITICAL: playVoiceEnhanced completely failed:', error);
       setIsSpeaking(false);
-      return playVoice(text);
+      
+      // Last resort fallback
+      try {
+        return await playVoice(text);
+      } catch (fallbackError) {
+        console.error('❌ CRITICAL: Even fallback audio failed:', fallbackError);
+        throw new Error(`All audio playback methods failed: ${error.message}`);
+      }
     }
   }, [playVoice]);
 
@@ -1614,33 +1786,40 @@ export const BuddyApp = () => {
     }
   }, [childProfile, hasGreeted, playVoice]);
 
-  // Auto greeting when profile is loaded - Fixed with proper dependencies and forced audio trigger
+  // MISSION CRITICAL: Bulletproof auto greeting pipeline
   useEffect(() => {
     if (childProfile && !hasGreeted && hasConsent) {
-      console.log('🎵 Triggering auto-greeting for mobile users...');
-      // Immediate greeting trigger for mobile
+      console.log('🎵 MISSION CRITICAL: Auto-greeting initialization...');
+      
       const timer = setTimeout(async () => {
         setHasGreeted(true);
         
-        // Force audio context activation for mobile
+        // STEP 1: Aggressive audio context activation
+        let audioActivated = false;
         try {
-          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-          if (audioCtx.state === 'suspended') {
-            await audioCtx.resume();
-            console.log('📱 Audio context resumed for mobile');
+          if (typeof window !== 'undefined') {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioContextClass) {
+              const audioCtx = new AudioContextClass();
+              if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+                console.log('✅ CRITICAL: Audio context activated');
+                audioActivated = true;
+              } else if (audioCtx.state === 'running') {
+                console.log('✅ CRITICAL: Audio context already running');
+                audioActivated = true;
+              }
+            }
           }
         } catch (error) {
-          console.log('📱 Audio context activation failed:', error);
+          console.warn('⚠️ CRITICAL: Audio context setup failed:', error);
         }
         
-        // Trigger immediate greeting
-        const greetingText = `Hello Ishanvi! It's so happy to see you today! Shall we have some fun?`;
-        console.log('🎵 Starting IMMEDIATE audio for greeting:', greetingText);
+        // STEP 2: Get personalized greeting
+        const greetingText = getWelcomeMessage();
+        console.log('🎵 CRITICAL: Auto-greeting text:', greetingText);
         
-        // Use enhanced playback for mobile optimization
-        await playVoiceEnhanced(greetingText);
-        
-        // Add greeting message to chat
+        // STEP 3: Add visual message immediately (never fails)
         const greetingMessage: ChatMessage = {
           id: Date.now().toString(),
           type: 'buddy',
@@ -1650,7 +1829,74 @@ export const BuddyApp = () => {
         };
         setMessages(prev => [...prev, greetingMessage]);
         
-      }, 500); // Reduced delay for faster response
+        // STEP 4: BULLETPROOF audio playback with multiple fallback strategies
+        const attemptAudioPlayback = async () => {
+          try {
+            console.log('🎵 CRITICAL: Attempting immediate audio playback...');
+            await playVoiceEnhanced(greetingText);
+            console.log('✅ CRITICAL: Auto-greeting audio SUCCESS');
+            return true;
+          } catch (audioError) {
+            console.warn('⚠️ CRITICAL: Immediate audio blocked:', audioError);
+            return false;
+          }
+        };
+        
+        // Try immediate playback first
+        const immediateSuccess = await attemptAudioPlayback();
+        
+        if (!immediateSuccess) {
+          console.log('🎵 CRITICAL: Setting up interaction-based audio trigger...');
+          
+          // Fallback: Enable audio on ANY user interaction
+          const enableAudioOnInteraction = async (event: Event) => {
+            console.log('🎵 CRITICAL: User interaction detected, triggering audio:', event.type);
+            try {
+              // Re-activate audio context
+              if (typeof window !== 'undefined') {
+                const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                if (AudioContextClass) {
+                  const audioCtx = new AudioContextClass();
+                  if (audioCtx.state === 'suspended') {
+                    await audioCtx.resume();
+                  }
+                }
+              }
+              
+              // Play the greeting
+              await playVoiceEnhanced(greetingText);
+              console.log('✅ CRITICAL: Delayed auto-greeting SUCCESS');
+              
+              // Remove all listeners
+              document.removeEventListener('click', enableAudioOnInteraction);
+              document.removeEventListener('touchstart', enableAudioOnInteraction);
+              document.removeEventListener('touchend', enableAudioOnInteraction);
+              document.removeEventListener('keydown', enableAudioOnInteraction);
+              document.removeEventListener('scroll', enableAudioOnInteraction);
+              
+            } catch (retryError) {
+              console.error('❌ CRITICAL: Audio failed even after interaction:', retryError);
+            }
+          };
+          
+          // Listen for multiple interaction types
+          document.addEventListener('click', enableAudioOnInteraction, { once: true, passive: true });
+          document.addEventListener('touchstart', enableAudioOnInteraction, { once: true, passive: true });
+          document.addEventListener('touchend', enableAudioOnInteraction, { once: true, passive: true });
+          document.addEventListener('keydown', enableAudioOnInteraction, { once: true, passive: true });
+          document.addEventListener('scroll', enableAudioOnInteraction, { once: true, passive: true });
+          
+          // Safety timeout - clean up listeners after 30 seconds
+          setTimeout(() => {
+            document.removeEventListener('click', enableAudioOnInteraction);
+            document.removeEventListener('touchstart', enableAudioOnInteraction);
+            document.removeEventListener('touchend', enableAudioOnInteraction);
+            document.removeEventListener('keydown', enableAudioOnInteraction);
+            document.removeEventListener('scroll', enableAudioOnInteraction);
+          }, 30000);
+        }
+        
+      }, 200); // Faster response time
       
       return () => clearTimeout(timer);
     }
