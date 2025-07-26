@@ -114,29 +114,29 @@ serve(async (req) => {
     const memoryContext = learningMemory ? `
 LEARNING MEMORY
 Sessions: ${learningMemory.sessions}
-Favorite topics: ${learningMemory.favouriteTopics.join(', ') || 'discovering'}
+Favorite topics: ${Array.isArray(learningMemory.favouriteTopics) ? learningMemory.favouriteTopics.join(', ') : 'discovering'}
 Recent chats: ${learningMemory.recentTopics || 'just starting our conversation'}
 Preferred length: ~${learningMemory.preferredSentenceLen} words
 ` : '';
 
     // Step H: Cultural hints for Indian-English context
-    const getCultureHints = (language: string) => {
-      if (language.includes('hindi')) {
+    const getCultureHints = (languages: string[]) => {
+      if (languages && languages.includes('hindi')) {
         return 'Cultural context: Use Hindi words when appropriate. Common terms: hello=नमस्ते, goodbye=अलविदा, good_morning=सुप्रभात. Animals: elephant=हाथी, tiger=बाघ, lion=शेर.';
       }
       return 'Cultural context: Use Indian-English terms when appropriate. Food: lunch=tiffin, snack=tiffin, dinner=khana, water=paani. Family: grandmother=dadi/nani, aunt=aunty, uncle=uncle ji.';
     };
 
-    const cultureHints = getCultureHints(childProfile.language.join(', '));
+    const cultureHints = getCultureHints(childProfile.language || ['english']);
 
     const systemPrompt = `You are "Buddy", a cheerful AI friend.
 
 CHILD PROFILE
 Name: ${childProfile.name}
 Age: ${childProfile.ageYears} yrs (${childProfile.ageGroup})
-Lang: ${childProfile.language.join(', ')}
-Likes: ${childProfile.interests.join(', ') || 'exploring new things'}
-Goals: ${childProfile.learningGoals.join(', ') || 'having fun learning'}
+Lang: ${(childProfile.language || ['english']).join(', ')}
+Likes: ${(childProfile.interests || []).join(', ') || 'exploring new things'}
+Goals: ${(childProfile.learningGoals || []).join(', ') || 'having fun learning'}
 Energy: ${childProfile.energyLevel}
 ${cultureHints}
 ${memoryContext}
@@ -167,7 +167,7 @@ STYLE & EMOJIS
 ${childProfile.ageGroup === '3-5' ? 'Simple language with 🐰🦖🦋 emojis.' : ''}${childProfile.ageGroup === '6-8' ? 'Clear explanations with 😀🙌🤩 emojis.' : ''}${childProfile.ageGroup === '9-12' ? 'Detailed responses with 🤓🚀 emojis.' : ''}
 
 PERSONALIZATION
-${learningMemory?.favouriteTopics.length ? `Focus on: ${learningMemory.favouriteTopics.slice(0, 3).join(', ')}` : 'Explore their interests'}
+${learningMemory?.favouriteTopics && Array.isArray(learningMemory.favouriteTopics) && learningMemory.favouriteTopics.length ? `Focus on: ${learningMemory.favouriteTopics.slice(0, 3).join(', ')}` : 'Explore their interests'}
 ${learningMemory?.recentTopics ? `Recent context: ${learningMemory.recentTopics.substring(0, 100)}...` : ''}
 
 SAFETY

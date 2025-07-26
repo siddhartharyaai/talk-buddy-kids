@@ -27,6 +27,7 @@ import { uploadTestStory } from '../utils/uploadTestStory';
 import { testGetContent } from '../utils/testGetContent';
 import { testStorageAccess } from '../utils/testStorageAccess';
 import { runDynamicFallbackTests, generateTestReport } from '../utils/testDynamicFallback';
+import { BuddyDiagnostics } from '../utils/diagnostics';
 import confetti from 'canvas-confetti';
 import { AudioChimes } from '../utils/audioChimes';
 
@@ -305,23 +306,46 @@ export const BuddyApp = () => {
       
       console.log(`📤 Sending ${base64Audio.length} characters to streaming transcription`);
       
-      // Use streaming transcription instead of batch processing
-      const projectRef = window.location.hostname.split('.')[0];
+      // Use streaming transcription with enhanced error handling
+      const hostname = window.location.hostname;
+      const projectRef = hostname.includes('.') ? hostname.split('.')[0] : 'bcqfogudctmltxvwluyb';
       const wsUrl = `wss://${projectRef}.functions.supabase.co/functions/v1/transcribe-streaming`;
+      
+      console.log(`🔗 Connecting to: ${wsUrl}`);
       
       const ws = new WebSocket(wsUrl);
       let finalTranscript = '';
       let qualityData: { isLowQuality: boolean; reason: string } | null = null;
+      let connectionTimeout: NodeJS.Timeout | null = null;
+      
+      // Set connection timeout
+      connectionTimeout = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          console.error('❌ WebSocket connection timeout');
+          ws.close();
+          throw new Error('Connection timeout');
+        }
+      }, 10000); // 10 second timeout
       
       ws.onopen = () => {
         console.log('🔌 Connected to streaming transcription');
-        // Send audio data
-        ws.send(JSON.stringify({
-          type: 'audio',
-          data: base64Audio
-        }));
-        // Signal recording complete
-        ws.send(JSON.stringify({ type: 'stop_recording' }));
+        if (connectionTimeout) {
+          clearTimeout(connectionTimeout);
+          connectionTimeout = null;
+        }
+        
+        try {
+          // Send audio data
+          ws.send(JSON.stringify({
+            type: 'audio',
+            data: base64Audio
+          }));
+          // Signal recording complete
+          ws.send(JSON.stringify({ type: 'stop_recording' }));
+        } catch (error) {
+          console.error('❌ Failed to send audio data:', error);
+          throw new Error('Failed to send audio data to transcription service');
+        }
       };
       
       ws.onmessage = (event) => {
@@ -416,11 +440,39 @@ export const BuddyApp = () => {
       
       ws.onerror = (error) => {
         console.error('❌ WebSocket error:', error);
+        if (connectionTimeout) {
+          clearTimeout(connectionTimeout);
+          connectionTimeout = null;
+        }
+        
+        // Update message to show error
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, content: '[Connection failed - Please try again]', isProcessing: false }
+            : msg
+        ));
+        
+        setIsRecording(false);
         throw new Error('Streaming transcription connection failed');
       };
       
-      ws.onclose = () => {
-        console.log('🔌 Streaming transcription closed');
+      ws.onclose = (event) => {
+        console.log('🔌 Streaming transcription closed:', event.code, event.reason);
+        if (connectionTimeout) {
+          clearTimeout(connectionTimeout);
+          connectionTimeout = null;
+        }
+        
+        // If closed unexpectedly and no final transcript received
+        if (event.code !== 1000 && !finalTranscript) {
+          console.error('❌ WebSocket closed unexpectedly');
+          setMessages(prev => prev.map(msg => 
+            msg.id === messageId 
+              ? { ...msg, content: '[Connection lost - Please try again]', isProcessing: false }
+              : msg
+          ));
+          setIsRecording(false);
+        }
       };
       
     } catch (error) {
@@ -431,12 +483,15 @@ export const BuddyApp = () => {
         console.log('ℹ️ Could not play error chime:', err)
       );
       
-      // Update message with error
+      // Update message with error and stop processing state
       setMessages(prev => prev.map(msg => 
         msg.id === messageId 
-          ? { ...msg, content: '[Transcription failed]', isProcessing: false }
+          ? { ...msg, content: '[Transcription failed - Please try again]', isProcessing: false }
           : msg
       ));
+      
+      // Ensure recording state is reset
+      setIsRecording(false);
       
       toast({
         title: "Transcription failed",
@@ -491,12 +546,31 @@ export const BuddyApp = () => {
       
       console.log('🎵 Audio Blob created successfully, size:', audioBlob.size, 'bytes');
       
-      // Create audio element
-      const audio = new Audio(audioUrl);
-      currentAudioRef.current = audio;
-      
-      // Set playback rate based on profile speech speed setting (Step F)
-      const getPlaybackRate = (profile: ChildProfile) => {
+        // Create audio element with mobile-optimized settings
+        const audio = new Audio(audioUrl);
+        currentAudioRef.current = audio;
+        
+        // Mobile audio optimization
+        audio.preload = 'auto';
+        audio.volume = 1.0;
+        
+        // iOS requires user interaction for audio context
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+          console.log('📱 Mobile device detected - enabling audio context');
+          if (window.AudioContext || (window as any).webkitAudioContext) {
+            try {
+              const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+              if (audioContext.state === 'suspended') {
+                audioContext.resume();
+              }
+            } catch (err) {
+              console.log('ℹ️ AudioContext not available:', err);
+            }
+          }
+        }
+        
+        // Set playback rate based on profile speech speed setting (Step F)
+        const getPlaybackRate = (profile: ChildProfile) => {
         const speedSetting = profile.speechSpeed || (profile.ageYears < 7 ? 'slow' : 'normal');
         switch (speedSetting) {
           case 'slow': return 0.85;
@@ -2407,89 +2481,92 @@ export const BuddyApp = () => {
           
           
           
-          {/* Test get-content function */}
+          {/* Daily Limit Lock */}
           <Button
             variant="ghost"
             size="sm"
-            onClick={async () => {
-              try {
-                toast({ title: "Testing content fetch...", description: "Checking if get-content works" });
-                const result = await testGetContent();
-                if (result.error) {
-                  toast({ title: "Content fetch failed", description: String(result.error), variant: "destructive" });
-                } else {
-                  toast({ title: "Content found!", description: `Story: ${result.content?.title || 'Unknown'}` });
-                }
-                console.log('📖 Test content result:', result);
-              } catch (error) {
-                console.error('❌ Test failed:', error);
-                toast({ title: "Test failed", description: error?.message || "Unknown error", variant: "destructive" });
-              }
+            onClick={() => {
+              toast({ 
+                title: "Daily Limit Lock", 
+                description: "Set screen time limits for healthy usage" 
+              });
+              setShowSettings(true);
             }}
             className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
-            title="Test Get Content"
+            title="Set Daily Limit Lock"
           >
-            🔍
+            🔒
           </Button>
           
-          {/* Test storage access */}
+          {/* 30s Break Lock */}
           <Button
             variant="ghost"
             size="sm"
-            onClick={async () => {
-              try {
-                toast({ title: "Testing storage access...", description: "Checking file download" });
-                const result = await testStorageAccess();
-                if (result.error) {
-                  toast({ title: "Storage test failed", description: String(result.error), variant: "destructive" });
-                } else {
-                  toast({ title: "Storage works!", description: `Found story: ${result.story?.title || 'Unknown'}` });
-                }
-                console.log('💾 Storage test result:', result);
-              } catch (error) {
-                console.error('❌ Storage test failed:', error);
-                toast({ title: "Storage test failed", description: error?.message || "Unknown error", variant: "destructive" });
-              }
+            onClick={() => {
+              toast({ 
+                title: "Break Reminder", 
+                description: "Set regular break intervals for eye health" 
+              });
+              setShowSettings(true);
             }}
             className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
-            title="Test Storage Access"
+            title="Set 30s Break Lock"
           >
-            💾
+            ⏰
           </Button>
           
-          {/* Dynamic Fallback Test */}
+          {/* Clear All Locks */}
           <Button
             variant="ghost"
             size="sm"
-            onClick={async () => {
-              try {
-                toast({ title: "Running Dynamic Fallback Tests...", description: "Testing 4 scenarios" });
-                const results = await runDynamicFallbackTests();
-                const report = generateTestReport(results);
-                
-                if (report.allPassed) {
-                  toast({ 
-                    title: "All Tests Passed! ✅", 
-                    description: `${report.passCount}/${report.totalCount} tests successful` 
-                  });
-                } else {
-                  toast({ 
-                    title: "Some Tests Failed ⚠️", 
-                    description: `${report.passCount}/${report.totalCount} tests passed`, 
-                    variant: "destructive" 
-                  });
-                }
-              } catch (error) {
-                console.error('❌ Fallback tests failed:', error);
-                toast({ title: "Test Suite Failed", description: error?.message || "Unknown error", variant: "destructive" });
-              }
+            onClick={() => {
+              toast({ 
+                title: "Clear Locks", 
+                description: "Remove all usage restrictions" 
+              });
             }}
             className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
-            title="Test Dynamic Fallback System"
+            title="Clear All Locks"
           >
-            🌟
+            🔓
           </Button>
-          {/* Dev test buttons removed - lock controls now in production section above */}
+          
+          {/* Diagnostic Tool (Development Only) */}
+          {import.meta.env.DEV && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                try {
+                  toast({ title: "Running Full Diagnostics...", description: "Testing all systems" });
+                  const results = await BuddyDiagnostics.runFullDiagnostic();
+                  const report = BuddyDiagnostics.generateDiagnosticReport(results);
+                  console.log(report);
+                  
+                  const failCount = results.filter(r => r.status === 'FAIL').length;
+                  if (failCount === 0) {
+                    toast({ 
+                      title: "All Systems Healthy ✅", 
+                      description: `${results.length} tests passed successfully` 
+                    });
+                  } else {
+                    toast({ 
+                      title: `System Issues Detected ❌`, 
+                      description: `${failCount} failures found. Check console for details.`,
+                      variant: "destructive"
+                    });
+                  }
+                } catch (error) {
+                  console.error('❌ Diagnostic failed:', error);
+                  toast({ title: "Diagnostic Failed", description: error?.message || "Unknown error", variant: "destructive" });
+                }
+              }}
+              className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
+              title="Run Full System Diagnostics"
+            >
+              🏥
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
