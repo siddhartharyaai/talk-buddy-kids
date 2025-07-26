@@ -41,15 +41,18 @@ serve(async (req) => {
     console.log('🔌 Client WebSocket connected');
     
     // Connect to Deepgram streaming API
+    const deepgramApiKey = Deno.env.get("DEEPGRAM_API_KEY");
+    if (!deepgramApiKey) {
+      throw new Error("DEEPGRAM_API_KEY environment variable is not set");
+    }
+    
     const deepgramUrl = `wss://api.deepgram.com/v1/listen?model=nova-2&language=multi&smart_format=true&punctuate=true&filler_words=true&alternatives=3&interim_results=true&endpointing=300`;
     
     try {
-      deepgramWs = new WebSocket(deepgramUrl, {
-        headers: {
-          'Authorization': `Token ${Deno.env.get("DEEPGRAM_API_KEY")}`,
-        },
-      });
-
+      // Construct URL with auth token
+      const authUrl = `${deepgramUrl}&token=${deepgramApiKey}`;
+      deepgramWs = new WebSocket(authUrl);
+      
       deepgramWs.onopen = () => {
         console.log('✅ Connected to Deepgram streaming API');
         socket.send(JSON.stringify({ type: 'connected' }));
