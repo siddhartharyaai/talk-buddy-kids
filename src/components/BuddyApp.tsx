@@ -156,6 +156,21 @@ export const BuddyApp = () => {
           };
           setChildProfile(frontendProfile);
           console.log('✅ Loaded profile from database:', frontendProfile);
+          
+          // AUTO-TRIGGER INITIAL GREETING for mobile users - delay to avoid hoisting issues
+          if (!hasGreeted && frontendProfile) {
+            console.log('🎵 Auto-triggering initial greeting...');
+            setTimeout(() => {
+              if (!hasGreeted) {
+                setHasGreeted(true);
+                const greetingMessage = `Good morning! Hi Buddy! I just opened the app!`;
+                // Use ref to avoid hoisting issues
+                if (getBuddyResponseRef.current) {
+                  getBuddyResponseRef.current(greetingMessage);
+                }
+              }
+            }, 1000); // 1 second delay for better UX
+          }
         } else {
           console.log('📝 No profile found in database');
         }
@@ -167,7 +182,10 @@ export const BuddyApp = () => {
       setShowConsent(true);
     }
     console.log('🔍 useEffect completed');
-  }, []);
+  }, [hasGreeted]);
+
+  // Reference to getBuddyResponse for initial greeting
+  const getBuddyResponseRef = useRef<((message: string) => void) | null>(null);
 
   useEffect(() => {
     console.log('🔍 useEffect running...');
@@ -297,6 +315,17 @@ export const BuddyApp = () => {
   const transcribeAudio = async (audioBlob: Blob, messageId: string) => {
     try {
       console.log('🔄 Starting streaming transcription...');
+      
+      // Enhanced error handling for mobile audio transcription
+      if (!audioBlob || audioBlob.size === 0) {
+        throw new Error('Empty audio data received');
+      }
+      
+      console.log('📱 Audio blob details:', {
+        size: audioBlob.size,
+        type: audioBlob.type,
+        userAgent: navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop'
+      });
       
       // Convert blob to base64
       const arrayBuffer = await audioBlob.arrayBuffer();
@@ -748,6 +777,92 @@ export const BuddyApp = () => {
       throw error;
     }
   }, [childProfile]);
+
+  // Enhanced audio playback for mobile with preload and better error handling
+  const playVoiceEnhanced = useCallback(async (text: string) => {
+    try {
+      if (!text || text.trim() === '') {
+        console.log('⚠️ Empty text provided to playVoiceEnhanced');
+        return;
+      }
+
+      console.log('🔊 Starting enhanced voice playback for mobile:', text.substring(0, 50));
+
+      const { data, error } = await supabase.functions.invoke('speak-gtts', {
+        body: { text }
+      });
+
+      if (error) {
+        console.error('❌ Enhanced TTS Function Error:', error);
+        return playVoice(text);
+      }
+
+      if (!data?.audioContent) {
+        console.error('❌ No audio content in enhanced response');
+        return playVoice(text);
+      }
+
+      // Create audio with mobile-optimized settings
+      const audioBlob = new Blob([Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))], { type: 'audio/mp3' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      // Mobile-specific audio settings
+      audio.preload = 'auto';
+      audio.volume = 0.9;
+      
+      // Store current audio reference for stopping
+      currentAudioRef.current = audio;
+
+      audio.onloadstart = () => {
+        console.log('📱 Enhanced audio loading started');
+        setIsSpeaking(true);
+      };
+      
+      audio.oncanplaythrough = () => {
+        console.log('📱 Enhanced audio ready to play');
+      };
+      
+      audio.onended = () => {
+        console.log('📱 Enhanced audio playback ended');
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+        currentAudioRef.current = null;
+      };
+      
+      audio.onerror = (e) => {
+        console.error('📱 Enhanced audio error:', e);
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+        currentAudioRef.current = null;
+        playVoice(text);
+      };
+
+      // Wait for audio to be ready before playing  
+      await new Promise<void>((resolve, reject) => {
+        const onReady = () => resolve();
+        const onError = () => reject(new Error('Audio load failed'));
+        
+        audio.oncanplaythrough = onReady;
+        audio.onerror = onError;
+        
+        // Timeout fallback
+        setTimeout(() => {
+          if (audio.readyState >= 3) { // HAVE_FUTURE_DATA
+            resolve();
+          }
+        }, 2000);
+      });
+
+      await audio.play();
+      console.log('📱 Enhanced audio playback started successfully');
+
+    } catch (error) {
+      console.error('❌ playVoiceEnhanced failed:', error);
+      setIsSpeaking(false);
+      return playVoice(text);
+    }
+  }, [playVoice]);
 
   // STEP 8: PERSONALISATION LOOP - Learning Memory Functions
   const loadLearningMemory = useCallback((childName: string): LearningMemory => {
@@ -1262,6 +1377,11 @@ export const BuddyApp = () => {
       });
     }
   }, [childProfile, playVoice, addTranscript, loadLearningMemory, updateLearningMemory]);
+
+  // Set the ref for initial greeting access
+  useEffect(() => {
+    getBuddyResponseRef.current = getBuddyResponse;
+  }, [getBuddyResponse]);
 
   // Enhanced stop speaking function for barge-in (SECTION C)
   const stopSpeaking = useCallback(() => {
@@ -2323,11 +2443,58 @@ export const BuddyApp = () => {
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
-          {/* Theme Toggle */}
+        <div className="flex items-center gap-2">
+          {/* 1. Theme Toggle */}
           <ThemeToggle />
           
-          {/* Settings Button */}
+          {/* 2. Set Daily Limit Lock */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              const tomorrow = new Date();
+              tomorrow.setDate(tomorrow.getDate() + 1);
+              tomorrow.setHours(6, 30, 0, 0);
+              localStorage.setItem('micLockedUntil', tomorrow.getTime().toString());
+              toast({ title: "Daily limit set!", description: "Mic locked until tomorrow 6:30 AM" });
+            }}
+            className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
+            title="Set Daily Limit Lock"
+          >
+            🔒
+          </Button>
+          
+          {/* 3. Set 30s Break Lock */}
+          <Button
+            variant="ghost"
+            size="sm" 
+            onClick={() => {
+              const breakEndTime = Date.now() + 30000;
+              localStorage.setItem('breakLockedUntil', breakEndTime.toString());
+              toast({ title: "Break time set!", description: "Mic locked for 30 seconds" });
+            }}
+            className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
+            title="Set 30s Break Lock"
+          >
+            ⏸️
+          </Button>
+          
+          {/* 4. Clear All Locks */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              localStorage.removeItem('micLockedUntil');
+              localStorage.removeItem('breakLockedUntil');
+              toast({ title: "Locks cleared!", description: "Mic is now unlocked" });
+            }}
+            className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
+            title="Clear All Locks"
+          >
+            🔓
+          </Button>
+          
+          {/* 5. Settings */}
           <Button
             variant="ghost"
             size="sm"
@@ -2338,7 +2505,7 @@ export const BuddyApp = () => {
             <Settings className="w-5 h-5 text-gray-600" />
           </Button>
           
-          {/* Logout Button */}
+          {/* 6. Logout */}
           <Button
             variant="ghost"
             size="sm"
@@ -2348,57 +2515,6 @@ export const BuddyApp = () => {
           >
             <LogOut className="w-4 h-4 text-gray-600" />
           </Button>
-          
-          {/* Production Controls - Always visible for parents */}
-          <div className="hidden sm:flex gap-1 mr-2">
-            {/* Lock Controls for Parents - Always visible */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                // Test daily limit lock
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                tomorrow.setHours(6, 30, 0, 0);
-                localStorage.setItem('micLockedUntil', tomorrow.getTime().toString());
-                toast({ title: "Daily limit set!", description: "Mic locked until tomorrow 6:30 AM" });
-              }}
-              className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
-              title="Set Daily Limit Lock"
-            >
-              🔒
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm" 
-              onClick={() => {
-                // Test 30-second break lock
-                const breakEndTime = Date.now() + 30000;
-                localStorage.setItem('breakLockedUntil', breakEndTime.toString());
-                toast({ title: "Break time set!", description: "Mic locked for 30 seconds" });
-              }}
-              className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
-              title="Set 30s Break Lock"
-            >
-              ⏸️
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                // Clear all locks
-                localStorage.removeItem('micLockedUntil');
-                localStorage.removeItem('breakLockedUntil');
-                toast({ title: "Locks cleared!", description: "Mic is now unlocked" });
-              }}
-              className="p-2 hover:bg-accent/20 rounded-full transition-all duration-300 hover:scale-110"
-              title="Clear All Locks"
-            >
-              🔓
-            </Button>
-          </div>
           
           {/* Step 10: Hide test buttons in production build v1.0.0 */}
           {import.meta.env.DEV && (
