@@ -15,11 +15,17 @@ serve(async (req) => {
   try {
     console.log('🔧 Repair module called for low-quality transcription');
     
-    const { transcript, childProfile, qualityIssue } = await req.json();
+    const { transcript, childProfile, qualityIssue, confidence, durationMs, conversationContext } = await req.json();
     
-    console.log(`🔍 Processing repair request: "${transcript}" (issue: ${qualityIssue})`);
+    console.log(`🔍 Processing intelligent repair request:`, {
+      transcript,
+      issue: qualityIssue,
+      confidence,
+      duration: durationMs,
+      contextLength: conversationContext?.length || 0
+    });
 
-    // Generate child-friendly clarifier prompts (≤10 words)
+    // WORLD-CLASS CONTEXT-AWARE CLARIFIER PROMPTS (≤10 words)
     const clarifierPrompts = {
       'too short': [
         "Can you say more?",
@@ -81,18 +87,62 @@ serve(async (req) => {
       return prompts;
     };
 
-    // Select appropriate clarifier based on quality issue
-    const relevantPrompts = clarifierPrompts[qualityIssue] || clarifierPrompts['low confidence'];
+    // CONTEXT-AWARE CLARIFIER SELECTION
+    const getContextAwarePrompt = () => {
+      // Check conversation context for patterns
+      const recentFailures = conversationContext?.filter(msg => 
+        msg.type === 'buddy' && (
+          msg.content.includes("didn't understand") || 
+          msg.content.includes("try again") ||
+          msg.content.includes("didn't catch") ||
+          msg.content.includes("speak")
+        )
+      )?.length || 0;
+
+      // If multiple failures, suggest topic change
+      if (recentFailures >= 2) {
+        return [
+          "Let's try something fun! What do you like?",
+          "How about we talk about animals?",
+          "Want to hear a story instead?",
+          "What makes you happy?",
+          "Tell me about your favorite toy!"
+        ];
+      }
+
+      // Check for very short responses indicating possible confusion
+      if (transcript && transcript.length <= 3 && confidence < 0.4) {
+        return [
+          "I want to hear you! Say something!",
+          "What's on your mind today?",
+          "Tell me what you're thinking!",
+          "I'm all ears! What do you want?",
+          "Share something exciting with me!"
+        ];
+      }
+
+      // Default to quality-specific prompts
+      return clarifierPrompts[qualityIssue] || clarifierPrompts['low confidence'];
+    };
+
+    const relevantPrompts = getContextAwarePrompt();
     const ageAppropriate = getAgeAppropriateResponse(relevantPrompts, childProfile?.ageGroup || '6-8');
     const selectedPrompt = ageAppropriate[Math.floor(Math.random() * ageAppropriate.length)];
 
-    // Add encouraging emoji for children
-    const encouragingEmojis = ['😊', '🤗', '👂', '💫', '🌟', '✨'];
+    // Context-aware emoji selection
+    const recentFailures = conversationContext?.filter(msg => 
+      msg.type === 'buddy' && msg.content.includes("try again")
+    )?.length || 0;
+    
+    const encouragingEmojis = recentFailures >= 2 
+      ? ['🌟', '✨', '🎉', '🚀', '💫'] // More encouraging for repeated failures
+      : ['😊', '🤗', '👂', '💫', '🌟', '✨']; // Standard encouraging
+    
     const emoji = encouragingEmojis[Math.floor(Math.random() * encouragingEmojis.length)];
     
     const response = `${selectedPrompt} ${emoji}`;
 
-    console.log(`✅ Generated repair response: "${response}"`);
+    console.log(`✅ Generated context-aware repair response: "${response}" (failures: ${recentFailures})`);
 
     return new Response(
       JSON.stringify({ 

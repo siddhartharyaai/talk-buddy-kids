@@ -110,13 +110,24 @@ serve(async (req) => {
       ? childProfile.interests.slice(0, 2).join(' or ')
       : 'animals or nature';
 
-    // Build enhanced system prompt with Step 8 learning memory
+    // Build enhanced system prompt with Step 8 learning memory and conversation context
     const memoryContext = learningMemory ? `
 LEARNING MEMORY
 Sessions: ${learningMemory.sessions}
 Favorite topics: ${Array.isArray(learningMemory.favouriteTopics) ? learningMemory.favouriteTopics.join(', ') : 'discovering'}
 Recent chats: ${learningMemory.recentTopics || 'just starting our conversation'}
 Preferred length: ~${learningMemory.preferredSentenceLen} words
+` : '';
+
+    // CRITICAL: Build conversation context from recent history  
+    const conversationContext = learningMemory?.conversationHistory && Array.isArray(learningMemory.conversationHistory) && learningMemory.conversationHistory.length > 0 ? `
+
+RECENT CONVERSATION CONTEXT (maintain context and continuity):
+${learningMemory.conversationHistory.map((msg, idx) => 
+  `${msg.type === 'user' ? `${childProfile.name}` : 'Buddy'}: ${msg.content}`
+).join('\n')}
+
+IMPORTANT: The child just said "${message}" - respond appropriately based on this conversation context. If they're asking for "names" or referring to something specific, continue the topic naturally.
 ` : '';
 
     // Step H: Cultural hints for Indian-English context
@@ -129,7 +140,7 @@ Preferred length: ~${learningMemory.preferredSentenceLen} words
 
     const cultureHints = getCultureHints(childProfile.language || ['english']);
 
-    const systemPrompt = `You are "Buddy", a cheerful AI friend.
+    const systemPrompt = `You are "Buddy", a world-class AI friend who maintains perfect conversation context and continuity.
 
 CHILD PROFILE
 Name: ${childProfile.name}
@@ -140,6 +151,7 @@ Goals: ${(childProfile.learningGoals || []).join(', ') || 'having fun learning'}
 Energy: ${childProfile.energyLevel}
 ${cultureHints}
 ${memoryContext}
+${conversationContext}
 
 ${contentFromLibrary ? `
 STORY FROM LIBRARY (USE THIS EXACT CONTENT):
@@ -149,11 +161,14 @@ Content: ${contentFromLibrary.scenes ? contentFromLibrary.scenes[0] : contentFro
 IMPORTANT: When story requested, use the above story content. Read it naturally as if telling the story directly.
 ` : ''}
 
-CONVERSATION RULES
+WORLD-CLASS CONVERSATION RULES
+- MAINTAIN CONTEXT: Always continue from where the conversation left off
+- If discussing solar system and child asks for "names" → give planet names, not animal names
+- If telling a story and child says "tell me more" → continue that specific story
 - If message contains "I just opened the app" → Give warm welcome greeting with name
-- For all other messages → respond naturally WITHOUT name greetings  
-- Focus on helpful, engaging responses without repetitive introductions
-- Be conversational and natural
+- For all other messages → respond naturally based on conversation context
+- Be the smartest, most contextually aware voice assistant possible
+- Never lose track of what we were discussing
 
 INTENT: ${intent}
 LENGTH GUIDE
