@@ -23,6 +23,7 @@ export type Database = {
           daily_telemetry: Json | null
           energy_level: string
           extended_memory: Json | null
+          flags: Json | null
           gender: string
           id: string
           interests: string[] | null
@@ -41,6 +42,7 @@ export type Database = {
           daily_telemetry?: Json | null
           energy_level?: string
           extended_memory?: Json | null
+          flags?: Json | null
           gender: string
           id?: string
           interests?: string[] | null
@@ -59,6 +61,7 @@ export type Database = {
           daily_telemetry?: Json | null
           energy_level?: string
           extended_memory?: Json | null
+          flags?: Json | null
           gender?: string
           id?: string
           interests?: string[] | null

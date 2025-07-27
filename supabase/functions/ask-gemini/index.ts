@@ -37,13 +37,14 @@ serve(async (req) => {
   }
 
   try {
-    const { message, childProfile, learningMemory } = await req.json() as {
+    const { message, childProfile, learningMemory, systemContext } = await req.json() as {
       message: string;
       childProfile: ChildProfile;
       learningMemory?: LearningMemory;
+      systemContext?: any;
     };
 
-    console.log('🤖 Received request:', { message, childProfile, learningMemory });
+    console.log('🤖 Received request:', { message, childProfile, learningMemory, systemContext });
 
     if (!message) {
       throw new Error('Message is required');
@@ -64,6 +65,34 @@ serve(async (req) => {
       if (/song|गाना|कविता|rhyme|sing|music|melody|verse|rainbow.*kitten|lullaby/i.test(text)) return "song";
       if (/why|how|what|क्यों|क्या|explain|tell me about|what is|leaves fall|sky blue|where do/i.test(text)) return "question";
       return "chat";
+    }
+
+    // Get auto-sentiment and energy classification first
+    let sentiment = 'neu';
+    let energy = 'med';
+    
+    try {
+      const classifyResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' + geminiApiKey, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `Return JSON {"sentiment":"pos|neu|neg","energy":"low|med|high"} for: "${message}"`
+            }]
+          }],
+          generationConfig: { maxOutputTokens: 50 }
+        })
+      });
+      
+      const classifyData = await classifyResponse.json();
+      const classifyText = classifyData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+      const classified = JSON.parse(classifyText.replace(/```json|```/g, ''));
+      sentiment = classified.sentiment || 'neu';
+      energy = classified.energy || 'med';
+      console.log(`🧠 Classified sentiment: ${sentiment}, energy: ${energy}`);
+    } catch (e) {
+      console.log('⚠️ Sentiment classification failed, using defaults');
     }
 
     // Classify user intent
@@ -140,58 +169,50 @@ IMPORTANT: The child just said "${message}" - respond appropriately based on thi
 
     const cultureHints = getCultureHints(childProfile.language || ['english']);
 
-    const systemPrompt = `You are "Buddy", a world-class AI friend who maintains perfect conversation context and continuity.
+    const systemPrompt = `### SYSTEM (Buddy v1.09) ###
+You are **Buddy**, an emotionally-expressive Indian children's companion (age 3-12).
 
-CHILD PROFILE
-Name: ${childProfile.name}
-Age: ${childProfile.ageYears} yrs (${childProfile.ageGroup})
-Lang: ${(childProfile.language || ['english']).join(', ')}
-Likes: ${(childProfile.interests || []).join(', ') || 'exploring new things'}
-Goals: ${(childProfile.learningGoals || []).join(', ') || 'having fun learning'}
-Energy: ${childProfile.energyLevel}
-${cultureHints}
+1 · Timing  
+• Stream sentences; truncate politely if user interrupts.  
+
+2 · Age & attention  
+Age ${childProfile.ageYears}, speech normal×, token cap ${systemContext?.tokMax || (intent === 'story' ? 800 : intent === 'song' ? 400 : intent === 'question' ? 600 : 300)}.  
+
+3 · Memory  
 ${memoryContext}
+Return JSON patch { "memory_update": {...} } for new stable likes/dislikes.
+
+4 · Dialogue plan  
+mode=${systemContext?.mode || intent}, prosody=${systemContext?.prosody || 'neutral'}.  
+If needClarify=${systemContext?.needClarify || false} ask one short clarifier.
+
+5 · Indian-English style  
+Use Hinglish words, max 3 emoji, languages=${childProfile.language?.join(',') || 'english'}.  
+
+6 · Guardian ethos  
+Empathy, curiosity, mini-lessons aligned to learning_goals, end stories with reflection.
+Learning Goals: ${(childProfile.learningGoals || []).join(', ') || 'having fun learning'}
+Interests: ${(childProfile.interests || []).join(', ') || 'exploring new things'}
+
+7 · Safety  
+No adult/horror/hate/gore.  
+
 ${conversationContext}
+
+${cultureHints}
 
 ${contentFromLibrary ? `
 STORY FROM LIBRARY (USE THIS EXACT CONTENT):
 Title: ${contentFromLibrary.title}
 Content: ${contentFromLibrary.scenes ? contentFromLibrary.scenes[0] : contentFromLibrary.body || contentFromLibrary.content}
-
-IMPORTANT: When story requested, use the above story content. Read it naturally as if telling the story directly.
 ` : ''}
 
-WORLD-CLASS CONVERSATION RULES
-- MAINTAIN CONTEXT: Always continue from where the conversation left off
-- If discussing solar system and child asks for "names" → give planet names, not animal names
-- If telling a story and child says "tell me more" → continue that specific story
-- If message contains "I just opened the app" → Give warm welcome greeting with name
-- For all other messages → respond naturally based on conversation context
-- Be the smartest, most contextually aware voice assistant possible
-- Never lose track of what we were discussing
+Current user message: "${message}"
+Intent: ${intent}
+Sentiment: ${sentiment}
+Energy: ${energy}
 
-INTENT: ${intent}
-LENGTH GUIDE
-• "question" → concise answer ≤ 40 words.
-• "story" → ${contentFromLibrary ? 'Read the story from library above' : '250-350 words with beginning–middle–end'}.
-• "song" → 8-12 lines, rhyming if possible.
-• "chat" → 1-2 friendly sentences.
-Follow the guide exactly.
-
-STYLE & EMOJIS
-${childProfile.ageGroup === '3-5' ? 'Simple language with 🐰🦖🦋 emojis.' : ''}${childProfile.ageGroup === '6-8' ? 'Clear explanations with 😀🙌🤩 emojis.' : ''}${childProfile.ageGroup === '9-12' ? 'Detailed responses with 🤓🚀 emojis.' : ''}
-
-PERSONALIZATION
-${learningMemory?.favouriteTopics && Array.isArray(learningMemory.favouriteTopics) && learningMemory.favouriteTopics.length ? `Focus on: ${learningMemory.favouriteTopics.slice(0, 3).join(', ')}` : 'Explore their interests'}
-${learningMemory?.recentTopics ? `Recent context: ${learningMemory.recentTopics.substring(0, 100)}...` : ''}
-
-SAFETY
-No politics, brands, personal data.
-If unsafe asked → "Let's talk about ${safeTopics}!" 😊
-
-Current message: "${message}"
-
-Respond naturally as Buddy!`;
+################################`;
 
     console.log('🚀 Calling Gemini API...');
 
@@ -217,16 +238,7 @@ Respond naturally as Buddy!`;
             temperature: 0.7,
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: (() => {
-              // 3. Dynamic token limits based on intent
-              const maxTokens = intent === "story" ? 1500
-                              : intent === "song" ? 800
-                              : intent === "question" ? 300
-                              : 300; // chat
-              
-              console.log(`🔢 Setting maxTokens to ${maxTokens} for intent: ${intent}`);
-              return maxTokens;
-            })(),
+            maxOutputTokens: systemContext?.tokMax || (intent === "story" ? 800 : intent === "song" ? 400 : intent === "question" ? 600 : 300),
           },
           safetySettings: [
             {

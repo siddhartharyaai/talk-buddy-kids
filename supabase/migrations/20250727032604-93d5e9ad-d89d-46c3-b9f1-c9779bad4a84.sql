@@ -1,0 +1,1 @@
+ALTER TABLE child_profiles ADD COLUMN IF NOT EXISTS flags jsonb DEFAULT '{}'::jsonb;

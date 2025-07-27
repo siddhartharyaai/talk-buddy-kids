@@ -6,8 +6,11 @@ import { ConsentBanner } from './ConsentBanner';
 import { ParentSettingsModal, ChildProfile } from './ParentSettingsModal';
 import { AvatarDisplay } from './AvatarDisplay';
 import { ThemeToggle } from './ThemeToggle';
-// Removed assessQuality import as we're keeping transcription simple
 import { useToast } from '@/hooks/use-toast';
+import { decideNext, TurnSignals, Mode } from '@/brain/dialogueOrchestrator';
+import { maybeRepair } from '@/utils/dialogueRepair';
+import { quickMath, rhymeComplete, breathing5s } from '@/brain/games';
+import { BuddyTestSuite } from '@/utils/testSuite';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   minsUsedToday, 
