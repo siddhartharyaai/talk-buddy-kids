@@ -382,8 +382,12 @@ export const BuddyApp = () => {
         console.log('ℹ️ Could not play success chime:', err)
       );
       
+  // Apply dialogue repair and orchestrator
+      const userMessages = messages.filter(m => m.type === 'user').map(m => m.content);
+      const repairedText = maybeRepair(transcribedText, userMessages);
+      
       // Get response from Buddy
-      getBuddyResponse(transcribedText);
+      getBuddyResponse(repairedText);
       
     } catch (error) {
       console.error('❌ Complete transcription failure:', error);
@@ -1222,8 +1226,8 @@ export const BuddyApp = () => {
   }, [playVoice]);
 
 
-  // SECTION B: Enhanced getBuddyResponse with world-class self-healing and 8-turn memory
-  const getBuddyResponse = useCallback(async (userMessage: string, qualityData?: { isLowQuality: boolean; reason: string; confidence?: number; durationMs?: number }) => {
+  // SECTION B: Enhanced getBuddyResponse with orchestrator integration
+  const getBuddyResponse = useCallback(async (userMessage: string, signals?: TurnSignals) => {
     if (!childProfile) {
       console.error('❌ No child profile available for AI response');
       return;
@@ -1232,13 +1236,26 @@ export const BuddyApp = () => {
     // Step 8: Add transcript to learning memory
     addTranscript(childProfile.name, userMessage, 'user');
     
+    // Dialogue orchestrator decision
+    const defaultSignals: TurnSignals = {
+      sttConfidence: 0.9,
+      interrupted: false,
+      silenceMs: 0,
+      avgTurnSecs: 5,
+      sentiment: 'neu',
+      energy: 'med'
+    };
+    
+    const turnSignals = signals || defaultSignals;
+    const plan = decideNext(childProfile.ageYears, true, 'chat', turnSignals);
+    
+    console.log('🧠 Dialogue plan:', plan);
+    
     // SECTION B: Enhanced self-healing with repair module and context awareness
-    if (qualityData?.isLowQuality) {
+    if (plan.needClarify && turnSignals.sttConfidence < 0.75) {
       console.log('🔧 Routing to intelligent repair module for low-quality input:', {
         transcript: userMessage,
-        reason: qualityData.reason,
-        confidence: qualityData.confidence,
-        duration: qualityData.durationMs
+        confidence: turnSignals.sttConfidence
       });
       
       const repairMessage: ChatMessage = {
@@ -1256,9 +1273,9 @@ export const BuddyApp = () => {
           body: { 
             transcript: userMessage,
             childProfile: childProfile,
-            qualityIssue: qualityData.reason,
-            confidence: qualityData.confidence || 0,
-            durationMs: qualityData.durationMs || 0,
+            qualityIssue: 'low_confidence',
+            confidence: turnSignals.sttConfidence,
+            durationMs: 0,
             conversationContext: messages.slice(-6) // Last 6 messages for context
           }
         });
@@ -1377,12 +1394,19 @@ export const BuddyApp = () => {
       
       console.log('🧠 Enhanced memory context for Gemini:', memoryContext);
       
-      // Call ask-gemini edge function with enhanced context
+      // Call ask-gemini edge function with enhanced context and orchestrator plan
       const { data, error } = await supabase.functions.invoke('ask-gemini', {
         body: { 
           message: userMessage,
           childProfile: childProfile,
-          learningMemory: memoryContext  // Step 8: Inject learning context with 8-turn buffer
+          learningMemory: memoryContext,  // Step 8: Inject learning context with 8-turn buffer
+          systemContext: {
+            mode: plan.mode,
+            tokMax: plan.tokMax,
+            needClarify: plan.needClarify,
+            prosody: plan.prosody,
+            turnSignals: turnSignals
+          }
         }
       });
       
@@ -1688,15 +1712,7 @@ export const BuddyApp = () => {
         const greetingText = getWelcomeMessage();
         console.log('🎵 CRITICAL: Auto-greeting text:', greetingText);
         
-        // STEP 3: Add visual message immediately (never fails)
-        const greetingMessage: ChatMessage = {
-          id: Date.now().toString(),
-          type: 'buddy',
-          content: greetingText,
-          timestamp: new Date(),
-          isProcessing: false
-        };
-        setMessages(prev => [...prev, greetingMessage]);
+        // STEP 3: Skip adding greeting to messages (already shown in UI welcome card)
         
         // STEP 4: BULLETPROOF audio playback with multiple fallback strategies
         const attemptAudioPlayback = async () => {

@@ -157,7 +157,7 @@ export class StreamingTTSPlayer {
     }
   }
 
-  // Method to pause current playback immediately (barge-in support)
+  // Enhanced pause method for barge-in support
   pause(): void {
     console.log('⏸️ Pausing streaming TTS for barge-in');
     this.audioQueue = [];
