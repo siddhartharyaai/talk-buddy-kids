@@ -11,6 +11,7 @@ import { decideNext, TurnSignals, Mode } from '@/brain/dialogueOrchestrator';
 import { maybeRepair } from '@/utils/dialogueRepair';
 import { quickMath, rhymeComplete, breathing5s } from '@/brain/games';
 import { BuddyTestSuite } from '@/utils/testSuite';
+import { BuddyRealTestSuite } from '@/utils/realTestSuite';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   minsUsedToday, 
@@ -161,20 +162,7 @@ export const BuddyApp = () => {
           setChildProfile(frontendProfile);
           console.log('✅ Loaded profile from database:', frontendProfile);
           
-          // AUTO-TRIGGER INITIAL GREETING for mobile users - delay to avoid hoisting issues
-          if (!hasGreeted && frontendProfile) {
-            console.log('🎵 Auto-triggering initial greeting...');
-            setTimeout(() => {
-              if (!hasGreeted) {
-                setHasGreeted(true);
-                const greetingMessage = `Good morning! Hi Buddy! I just opened the app!`;
-                // Use ref to avoid hoisting issues
-                if (getBuddyResponseRef.current) {
-                  getBuddyResponseRef.current(greetingMessage);
-                }
-              }
-            }, 1000); // 1 second delay for better UX
-          }
+          // GREETING REMOVED: Now handled by single consolidated greeting system
         } else {
           console.log('📝 No profile found in database');
         }
@@ -1584,64 +1572,44 @@ export const BuddyApp = () => {
     }
   }, []);
 
-  // Auto-send welcome greeting on fresh app load - Always greets when app opens/refreshes
-  const sendAutoGreeting = useCallback(async () => {
+  // REMOVED: Duplicate greeting function - consolidated into single system
+
+  // CONSOLIDATED GREETING: Single, intelligent greeting system
+  const playWelcomeGreeting = useCallback(async () => {
     if (!childProfile || hasGreeted) return;
     
-    console.log('🤖 Fresh app load detected - sending welcome greeting...');
+    console.log('🎵 CONSOLIDATED: Starting single greeting system...');
+    setHasGreeted(true); // Immediately set to prevent multiple triggers
     
     // Step G: Include timezone-based day part in greeting
     const timezone = childProfile.usage_rules?.timezone || getDefaultTimezone();
     const dayPart = getDayPart(timezone);
-    const welcomeMessage = `${dayPart}! Hi Buddy! I just opened the app!`;
-    
-    // Add user message to trigger greeting
-    const userMsg: ChatMessage = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: welcomeMessage,
-      timestamp: new Date(),
-      isProcessing: false
-    };
-    
-    setMessages(prev => [...prev, userMsg]);
-    
-    // Get AI welcome response which will include proper greeting
-    await getBuddyResponse(welcomeMessage);
-    setHasGreeted(true);
-    
-    console.log('✅ Welcome greeting completed for fresh app session');
-  }, [childProfile, hasGreeted, getBuddyResponse]);
-
-  // Step 5: Random Greeting Logic with 15-entry array and duplicate prevention - Fixed with useCallback
-  const playWelcomeGreeting = useCallback(async () => {
-    if (!childProfile || hasGreeted) return;
     
     // 15-entry greeting array for variety (Step 5 requirement)
     const greetings = [
-      `Hi ${childProfile.name}! 🌟 I'm Buddy, your super fun AI friend! What amazing adventure should we start today?`,
-      `Hello there, ${childProfile.name}! 🚀 Welcome to our incredible learning journey together! What sounds exciting to you?`,
-      `Hey ${childProfile.name}! 🎉 I'm SO excited to be your learning buddy! What would you like to discover first?`,
-      `Wow, ${childProfile.name}! 🦋 It's fantastic to see you! What fascinating topic is on your mind today?`,
-      `Hi friend ${childProfile.name}! 🌈 I'm Buddy and I love exploring with curious kids like you! What shall we learn about?`,
-      `Hello brilliant ${childProfile.name}! ⭐ Ready for some amazing discoveries together? What interests you most?`,
-      `Hey there, ${childProfile.name}! 🎈 I'm Buddy, your AI learning companion! What cool things want to explore?`,
-      `Hi superstar ${childProfile.name}! 🌟 I'm here to have fun and learn with you! What adventure calls to you today?`,
-      `Hello amazing ${childProfile.name}! 🦖 I'm Buddy and I can't wait to discover incredible things with you! What's first?`,
-      `Hey wonderful ${childProfile.name}! 🎨 I'm your friendly AI buddy! What exciting topic should we dive into?`,
-      `Hi there, ${childProfile.name}! 🎪 I'm Buddy, ready for fun learning adventures! What would you like to explore?`,
-      `Hello fantastic ${childProfile.name}! 🌺 I'm here to chat, learn, and have amazing times together! What interests you?`,
-      `Hey creative ${childProfile.name}! 🎭 I'm Buddy, your AI friend for incredible discoveries! What shall we start with?`,
-      `Hi curious ${childProfile.name}! 🔍 I'm Buddy and I love answering questions and exploring! What's on your mind?`,
-      `Hello brilliant ${childProfile.name}! 💫 I'm your AI learning buddy, ready for awesome adventures! What sounds fun?`
+      `${dayPart} ${childProfile.name}! 🌟 I'm Buddy, your super fun AI friend! What amazing adventure should we start today?`,
+      `${dayPart} there, ${childProfile.name}! 🚀 Welcome to our incredible learning journey together! What sounds exciting to you?`,
+      `${dayPart} ${childProfile.name}! 🎉 I'm SO excited to be your learning buddy! What would you like to discover first?`,
+      `Wow, ${dayPart} ${childProfile.name}! 🦋 It's fantastic to see you! What fascinating topic is on your mind today?`,
+      `${dayPart} friend ${childProfile.name}! 🌈 I'm Buddy and I love exploring with curious kids like you! What shall we learn about?`,
+      `${dayPart} brilliant ${childProfile.name}! ⭐ Ready for some amazing discoveries together? What interests you most?`,
+      `${dayPart} there, ${childProfile.name}! 🎈 I'm Buddy, your AI learning companion! What cool things want to explore?`,
+      `${dayPart} superstar ${childProfile.name}! 🌟 I'm here to have fun and learn with you! What adventure calls to you today?`,
+      `${dayPart} amazing ${childProfile.name}! 🦖 I'm Buddy and I can't wait to discover incredible things with you! What's first?`,
+      `${dayPart} wonderful ${childProfile.name}! 🎨 I'm your friendly AI buddy! What exciting topic should we dive into?`,
+      `${dayPart} there, ${childProfile.name}! 🎪 I'm Buddy, ready for fun learning adventures! What would you like to explore?`,
+      `${dayPart} fantastic ${childProfile.name}! 🌺 I'm here to chat, learn, and have amazing times together! What interests you?`,
+      `${dayPart} creative ${childProfile.name}! 🎭 I'm Buddy, your AI friend for incredible discoveries! What shall we start with?`,
+      `${dayPart} curious ${childProfile.name}! 🔍 I'm Buddy and I love answering questions and exploring! What's on your mind?`,
+      `${dayPart} brilliant ${childProfile.name}! 💫 I'm your AI learning buddy, ready for awesome adventures! What sounds fun?`
     ];
     
-    // Get last greeting hashes to prevent duplicates (Step 5 requirement)
+    // Get last greeting hashes to prevent duplicates
     const lastGreetingHashes = JSON.parse(localStorage.getItem('buddyLastGreetingHashes') || '[]');
     
     // Filter out recently used greetings
     const availableGreetings = greetings.filter((greeting, index) => {
-      const greetingHash = btoa(greeting).slice(0, 10); // Simple hash
+      const greetingHash = btoa(greeting).slice(0, 10);
       return !lastGreetingHashes.includes(greetingHash);
     });
     
@@ -1651,141 +1619,48 @@ export const BuddyApp = () => {
     
     // Store greeting hash to prevent duplicates
     const newHash = btoa(randomGreeting).slice(0, 10);
-    const updatedHashes = [newHash, ...lastGreetingHashes].slice(0, 3); // Keep last 3
+    const updatedHashes = [newHash, ...lastGreetingHashes].slice(0, 3);
     localStorage.setItem('buddyLastGreetingHashes', JSON.stringify(updatedHashes));
     
-    console.log('🎯 Step 5 Greeting Selected:', {
+    console.log('🎯 CONSOLIDATED greeting selected:', {
+      dayPart,
       totalGreetings: greetings.length,
       availableCount: finalGreetings.length,
-      selectedHash: newHash,
-      recentHashes: updatedHashes
+      selectedHash: newHash
     });
     
     try {
-      setHasGreeted(true);
-      await playVoice(randomGreeting);
-      
-      // Add the greeting to chat
+      // Add the greeting to chat first
       const greetingMessage: ChatMessage = {
         id: Date.now().toString(),
         type: 'buddy',
         content: randomGreeting,
         timestamp: new Date()
       };
-      setMessages(prev => [greetingMessage]);
+      setMessages([greetingMessage]);
+      
+      // Then play audio
+      await playVoiceEnhanced(randomGreeting);
+      
+      console.log('✅ CONSOLIDATED greeting completed successfully');
       
     } catch (error) {
-      console.error('❌ Welcome greeting failed:', error);
+      console.error('❌ CONSOLIDATED greeting failed:', error);
     }
-  }, [childProfile, hasGreeted, playVoice]);
+  }, [childProfile, hasGreeted, playVoiceEnhanced]);
 
-  // MISSION CRITICAL: Bulletproof auto greeting pipeline
+  // SINGLE GREETING SYSTEM: Trigger only the consolidated greeting
   useEffect(() => {
     if (childProfile && !hasGreeted && hasConsent) {
-      console.log('🎵 MISSION CRITICAL: Auto-greeting initialization...');
+      console.log('🎵 SINGLE GREETING: Auto-triggering consolidated greeting...');
       
-      const timer = setTimeout(async () => {
-        setHasGreeted(true);
-        
-        // STEP 1: Aggressive audio context activation
-        let audioActivated = false;
-        try {
-          if (typeof window !== 'undefined') {
-            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-            if (AudioContextClass) {
-              const audioCtx = new AudioContextClass();
-              if (audioCtx.state === 'suspended') {
-                await audioCtx.resume();
-                console.log('✅ CRITICAL: Audio context activated');
-                audioActivated = true;
-              } else if (audioCtx.state === 'running') {
-                console.log('✅ CRITICAL: Audio context already running');
-                audioActivated = true;
-              }
-            }
-          }
-        } catch (error) {
-          console.warn('⚠️ CRITICAL: Audio context setup failed:', error);
-        }
-        
-        // STEP 2: Get personalized greeting
-        const greetingText = getWelcomeMessage();
-        console.log('🎵 CRITICAL: Auto-greeting text:', greetingText);
-        
-        // STEP 3: Skip adding greeting to messages (already shown in UI welcome card)
-        
-        // STEP 4: BULLETPROOF audio playback with multiple fallback strategies
-        const attemptAudioPlayback = async () => {
-          try {
-            console.log('🎵 CRITICAL: Attempting immediate audio playback...');
-            await playVoiceEnhanced(greetingText);
-            console.log('✅ CRITICAL: Auto-greeting audio SUCCESS');
-            return true;
-          } catch (audioError) {
-            console.warn('⚠️ CRITICAL: Immediate audio blocked:', audioError);
-            return false;
-          }
-        };
-        
-        // Try immediate playback first
-        const immediateSuccess = await attemptAudioPlayback();
-        
-        if (!immediateSuccess) {
-          console.log('🎵 CRITICAL: Setting up interaction-based audio trigger...');
-          
-          // Fallback: Enable audio on ANY user interaction
-          const enableAudioOnInteraction = async (event: Event) => {
-            console.log('🎵 CRITICAL: User interaction detected, triggering audio:', event.type);
-            try {
-              // Re-activate audio context
-              if (typeof window !== 'undefined') {
-                const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-                if (AudioContextClass) {
-                  const audioCtx = new AudioContextClass();
-                  if (audioCtx.state === 'suspended') {
-                    await audioCtx.resume();
-                  }
-                }
-              }
-              
-              // Play the greeting
-              await playVoiceEnhanced(greetingText);
-              console.log('✅ CRITICAL: Delayed auto-greeting SUCCESS');
-              
-              // Remove all listeners
-              document.removeEventListener('click', enableAudioOnInteraction);
-              document.removeEventListener('touchstart', enableAudioOnInteraction);
-              document.removeEventListener('touchend', enableAudioOnInteraction);
-              document.removeEventListener('keydown', enableAudioOnInteraction);
-              document.removeEventListener('scroll', enableAudioOnInteraction);
-              
-            } catch (retryError) {
-              console.error('❌ CRITICAL: Audio failed even after interaction:', retryError);
-            }
-          };
-          
-          // Listen for multiple interaction types
-          document.addEventListener('click', enableAudioOnInteraction, { once: true, passive: true });
-          document.addEventListener('touchstart', enableAudioOnInteraction, { once: true, passive: true });
-          document.addEventListener('touchend', enableAudioOnInteraction, { once: true, passive: true });
-          document.addEventListener('keydown', enableAudioOnInteraction, { once: true, passive: true });
-          document.addEventListener('scroll', enableAudioOnInteraction, { once: true, passive: true });
-          
-          // Safety timeout - clean up listeners after 30 seconds
-          setTimeout(() => {
-            document.removeEventListener('click', enableAudioOnInteraction);
-            document.removeEventListener('touchstart', enableAudioOnInteraction);
-            document.removeEventListener('touchend', enableAudioOnInteraction);
-            document.removeEventListener('keydown', enableAudioOnInteraction);
-            document.removeEventListener('scroll', enableAudioOnInteraction);
-          }, 30000);
-        }
-        
-      }, 200); // Faster response time
+      const timer = setTimeout(() => {
+        playWelcomeGreeting();
+      }, 500); // Short delay for better UX
       
       return () => clearTimeout(timer);
     }
-  }, [childProfile, hasGreeted, hasConsent, playVoiceEnhanced]);
+  }, [childProfile, hasGreeted, hasConsent, playWelcomeGreeting]);
 
   // Enhanced handleMicPress with barge-in functionality  
   const handleMicPress = async () => {
@@ -2592,6 +2467,63 @@ export const BuddyApp = () => {
 
     return overallPassed;
   };
+  // REAL TEST SUITE - CTO-Grade End-to-End Tests
+  const runRealTestSuite = async () => {
+    console.log('🔬 CTO-Grade Real Test Suite Starting...');
+    
+    toast({
+      title: "🔬 Real Test Suite Running",
+      description: "Testing STT, TTS, AI, Memory, Games...",
+    });
+
+    try {
+      const realTestSuite = new BuddyRealTestSuite();
+      const results = await realTestSuite.runAllRealTests();
+      
+      // Generate comprehensive report
+      const report = realTestSuite.generateRealReport();
+      console.log(report);
+      
+      // Count results
+      const testResults = Object.values(results);
+      const passCount = testResults.filter(t => t.status === 'PASS').length;
+      const totalCount = testResults.length;
+      const passRate = Math.round((passCount / totalCount) * 100);
+      
+      // Show results
+      if (passRate >= 80) {
+        toast({
+          title: `✅ Real Tests: ${passCount}/${totalCount} PASSED`,
+          description: `${passRate}% pass rate - App is production-ready!`,
+        });
+        console.log('✅ REAL TEST SUITE: PRODUCTION READY');
+      } else {
+        toast({
+          title: `❌ Real Tests: ${passCount}/${totalCount} FAILED`,
+          description: `${passRate}% pass rate - Critical issues found!`,
+          variant: "destructive"
+        });
+        console.log('❌ REAL TEST SUITE: CRITICAL ISSUES FOUND');
+      }
+      
+      // Show detailed results in console
+      console.table(testResults.map(test => ({
+        Test: test.test,
+        Status: test.status,
+        Details: test.details,
+        Timing: test.timing
+      })));
+      
+    } catch (error) {
+      console.error('❌ Real test suite failed:', error);
+      toast({
+        title: "❌ Real Test Suite Failed",
+        description: `Error: ${error}`,
+        variant: "destructive"
+      });
+    }
+  };
+
   const runStep0VerificationTest = () => {
     console.log('🧪 Step 0: Running verification test...');
     toast({
@@ -2613,6 +2545,18 @@ export const BuddyApp = () => {
   };
 
   console.log('🔍 About to render JSX...', { hasConsent, childProfile, showConsent, showSettings });
+
+  // AUTO-RUN REAL TEST SUITE IN DEVELOPMENT (for audit)
+  useEffect(() => {
+    if (import.meta.env.DEV && childProfile && hasConsent) {
+      const timer = setTimeout(() => {
+        console.log('🔬 AUTO-RUNNING Real Test Suite for audit...');
+        runRealTestSuite();
+      }, 3000); // Wait 3 seconds after profile loads
+      
+      return () => clearTimeout(timer);
+    }
+  }, [childProfile, hasConsent]);
 
   return (
     <div className="min-h-screen flex flex-col transition-colors duration-300">
@@ -2710,6 +2654,15 @@ export const BuddyApp = () => {
           {/* Step 10: Hide test buttons in production build v1.0.0 */}
           {import.meta.env.DEV && (
             <div className="flex gap-1 mr-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={runRealTestSuite}
+              className="p-1 hover:bg-green-100 rounded text-xs"
+              title="CTO-Grade Real Test Suite"
+            >
+              <span className="text-green-600 font-bold text-xs">REAL</span>
+            </Button>
             <Button
               variant="ghost"
               size="sm"
