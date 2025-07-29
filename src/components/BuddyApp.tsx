@@ -330,11 +330,22 @@ export const BuddyApp = () => {
         return;
       }
       
-      // Convert to base64 for transmission
+      // Convert to base64 for transmission with proper chunk handling
       const arrayBuffer = await audioBlob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
-      const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
-      const base64Audio = btoa(binaryString);
+      
+      // Use FileReader for more reliable base64 conversion
+      const base64Audio = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          // Remove the data URL prefix (data:audio/webm;base64,)
+          const base64 = result.split(',')[1] || result;
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(audioBlob);
+      });
       
       console.log(`📤 Audio converted: ${base64Audio.length} chars`);
       

@@ -30,20 +30,45 @@ serve(async (req) => {
 
     console.log(`📦 Received audio data: ${audio.length} characters`);
 
-    // Convert base64 to binary for Deepgram with better error handling
+    // Convert base64 to binary for Deepgram with enhanced validation
     let binary: Uint8Array;
     try {
+      // Clean the base64 string more thoroughly
+      let cleanBase64 = audio;
+      
       // Remove data URL prefix if present
-      const cleanBase64 = audio.replace(/^data:audio\/[^;]+;base64,/, '');
+      if (cleanBase64.includes(',')) {
+        cleanBase64 = cleanBase64.split(',')[1];
+      }
+      
+      // Remove any whitespace or invalid characters
+      cleanBase64 = cleanBase64.replace(/[^A-Za-z0-9+/=]/g, '');
+      
+      // Validate base64 format
+      if (cleanBase64.length % 4 !== 0) {
+        console.warn('⚠️ Base64 padding issue, attempting to fix...');
+        while (cleanBase64.length % 4 !== 0) {
+          cleanBase64 += '=';
+        }
+      }
+      
+      console.log(`📏 Base64 length: ${cleanBase64.length} chars`);
+      
       const binaryString = atob(cleanBase64);
       binary = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
         binary[i] = binaryString.charCodeAt(i);
       }
       console.log(`🔄 Converted to binary: ${binary.length} bytes`);
+      
+      // Validate minimum size
+      if (binary.length < 100) {
+        throw new Error('Audio data too small, likely corrupt');
+      }
+      
     } catch (error) {
       console.error('❌ Base64 conversion error:', error);
-      throw new Error('Invalid audio data format');
+      throw new Error(`Invalid audio data format: ${error.message}`);
     }
 
     // Prepare form data for Deepgram API with cross-platform audio support
